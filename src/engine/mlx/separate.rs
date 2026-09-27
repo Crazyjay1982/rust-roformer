@@ -59,10 +59,15 @@
 //! starts over instead of splicing two separations into one stem.
 //!
 //! Cancellation is observed between windows — never inside a forward, because the
-//! runtime's own decode loop is not ours to interrupt — and, as the only failure
-//! that means "nobody wants this result", it discards the staging with
-//! [`discard_staging`](crate::stream::discard_staging). Every other failure keeps
-//! it.
+//! runtime's own decode loop is not ours to interrupt. It keeps the staging, like
+//! every other failure does: [`SeparationEngine::separate`]'s contract is that the
+//! next call with the same paths continues from the last flushed window, and the
+//! caller who pressed stop is the one most likely to want that. Deleting a
+//! checkpoint is irreversible, so it stays the caller's explicit
+//! [`discard_staging`](crate::stream::discard_staging) rather than an engine
+//! policy — the production arm this was ported from *does* throw the pair away on
+//! stop, because in that product "stop" means "I am not coming back to this one";
+//! a library cannot know which of the two a caller meant.
 //!
 //! ## What is not ported
 //!
@@ -599,14 +604,13 @@ impl SeparationEngine for MlxEngine {
         mem::window_fits(per_forward_mb(), opts.memory_budget_mb)?;
 
         let report = self.separate_inner(input, out, opts, win, overlap);
-        if let Err(e) = &report {
-            // Only cancellation means "nobody wants this result". Every other
-            // failure — on a 16 GB laptop usually an allocation refusal — leaves
-            // the pair and its sidecar in place for the next run to continue from.
-            if matches!(e, Error::Cancelled) {
-                crate::stream::discard_staging(&out.vocals, &out.background);
-            }
-        }
+        // And every failure, cancellation included, leaves the `.part` pair and its
+        // sidecar in place: the trait's contract is that the next call with the same
+        // paths continues rather than starting at zero, and a user who hit "stop" is
+        // the caller most likely to want that. Throwing a checkpoint away is the
+        // caller's own, reversible-until-asked act —
+        // [`discard_staging`](crate::stream::discard_staging) — not something this
+        // engine does on their behalf.
         report.map(|mut r| {
             r.wall_ms = t0.elapsed().as_millis();
             r
@@ -1242,14 +1246,14 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// Cancellation between windows: the run stops, returns `Cancelled`, and — as
-    /// the one failure that means "nobody wants this" — leaves no staging for the
-    /// next run to trip over.
+    /// Cancellation between windows: the run stops, returns `Cancelled`, and keeps
+    /// the checkpoint the trait promises — and a later call that continues it
+    /// publishes the bytes an uninterrupted run would have.
     #[test]
     #[ignore = "maps the RoFormer MLX weight file (~1 GB)"]
-    fn a_cancelled_run_keeps_nothing() {
+    fn a_cancelled_run_leaves_a_resumable_checkpoint() {
         let Some(weights) = fixture("RR_MLX_WEIGHTS") else {
-            println!("[SKIP] a_cancelled_run_keeps_nothing: no RR_MLX_WEIGHTS");
+            println!("[SKIP] a_cancelled_run_leaves_a_resumable_checkpoint: no RR_MLX_WEIGHTS");
             return;
         };
         let dir = scratch("cancel");
@@ -1273,7 +1277,7 @@ mod tests {
         assert!(!job_path(&paths.vocals).exists());
 
         // Cancelled after the first checkpoint: the windows already flushed were
-        // real work, and the run must not hang on to it.
+        // paid-for work, so they stay on disk for whoever comes next.
         let mut e = MlxEngine::load(&weights).expect("load");
         let flag = CancelFlag::new();
         // The callback fires once per window before its forward, so this stops the
@@ -1294,9 +1298,64 @@ mod tests {
             .expect_err("the flag was set by the progress callback");
         assert!(matches!(err, Error::Cancelled), "{err}");
         assert!(
-            !part_path(&paths.vocals).exists() && !job_path(&paths.vocals).exists(),
-            "a cancelled run left staging behind"
+            part_path(&paths.vocals).exists() && job_path(&paths.vocals).exists(),
+            "a cancelled run threw away the checkpoint the next one resumes from"
         );
+        assert!(
+            !paths.vocals.exists(),
+            "the published name appears only when the whole track is written"
+        );
+
+        // Continue it. This is the claim the crate sells, stated for the one
+        // failure a user causes on purpose.
+        let mut e = MlxEngine::load(&weights).expect("load");
+        let r = e
+            .separate(&input, &paths, &SeparationOptions::default())
+            .expect("a cancelled run must be resumable");
+        // The cancelled pass flushed exactly one hop (`starts[1]`), so that is the
+        // seam the continuing pass must report it started from. `windows_resumed`
+        // is deliberately *not* asserted non-zero here: one flushed window is
+        // re-inferred as seam priming rather than skipped, and a count of skipped
+        // windows says nothing about reused bytes.
+        assert_eq!(
+            r.resumed_from_frames,
+            Some(WIN - OVERLAP),
+            "the continuing pass did not start from the cancelled run's flush point: {r:?}"
+        );
+        assert_eq!(
+            r.windows_inferred + r.windows_resumed,
+            chunk_starts(2 * WIN, WIN, OVERLAP).len(),
+            "the two counts must partition the schedule: {r:?}"
+        );
+
+        let control = scratch("cancel-control");
+        let control_input = control.join("in.wav");
+        write_test_wav(&control_input, 2 * WIN);
+        let control_paths = StemPaths::new(control.join("v.wav"), control.join("b.wav"));
+        let mut e = MlxEngine::load(&weights).expect("load");
+        e.separate(
+            &control_input,
+            &control_paths,
+            &SeparationOptions::default(),
+        )
+        .expect("control run");
+
+        for (got, want, name) in [
+            (&paths.vocals, &control_paths.vocals, "vocals"),
+            (&paths.background, &control_paths.background, "background"),
+        ] {
+            let (a, b) = (read_i16_stereo(got), read_i16_stereo(want));
+            let (n_diff, worst) = stem_diff(&a, &b);
+            assert_eq!(a.len(), b.len(), "{name}: length changed");
+            assert_eq!(
+                n_diff,
+                0,
+                "{name}: {n_diff}/{} samples differ (max {worst} LSB) after resuming a \
+                 cancellation",
+                a.len()
+            );
+        }
+        let _ = std::fs::remove_dir_all(&control);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

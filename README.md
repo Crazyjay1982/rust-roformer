@@ -59,7 +59,10 @@ directions, and make the work resumable.**
   uninterrupted one — that is a test, not a claim.
 * **Observes cancellation between windows.** No runtime gives us its decode
   loop, so stop costs at most one window. Keeping windows small is what makes
-  that latency acceptable.
+  that latency acceptable. Stopping does not throw the work away: no failure this
+  crate can produce deletes a checkpoint, because a caller who pressed stop might
+  have meant "later", and `stream::discard_staging` is there for the ones who did
+  not.
 * **No whole-track buffers anywhere in the pipeline.** The MLX engine's host
   peak on a 45.8-minute track went 3,405 MB → 72 MB with device-side figures
   unchanged value for value; separation quality was accepted at
@@ -103,31 +106,41 @@ away from would have hidden that.
 ## Quick start
 
 ```rust
-use std::path::Path;
-use rust_roformer::config::{StemPaths, SeparationOptions};
+use rust_roformer::config::{SeparationOptions, StemPaths};
 use rust_roformer::engine::{onnx::OnnxEngine, SeparationEngine};
+use std::error::Error;
+use std::path::Path;
 
-let mut engine = OnnxEngine::load(Path::new("melband_roformer_vocals.onnx"))?;
-println!("model window: {} samples", engine.window_samples()?);
+fn main() -> Result<(), Box<dyn Error>> {
+    let mut engine = OnnxEngine::load(Path::new("melband_roformer_vocals.onnx"))?;
+    println!("model window: {} samples", engine.window_samples()?);
 
-let opts = SeparationOptions::default();
-let report = engine.separate(
-    Path::new("song.wav"),
-    &StemPaths::new("vocals.wav", "background.wav"),
-    &opts,
-)?;
-println!("{} frames, {} windows, peak {:?}",
-    report.frames, report.windows_inferred, report.peak_mb);
-# Ok::<(), rust_roformer::Error>(())
+    let report = engine.separate(
+        Path::new("song.wav"),
+        &StemPaths::new("vocals.wav", "background.wav"),
+        &SeparationOptions::default(),
+    )?;
+    println!(
+        "{} frames, {} windows, peak {:?}",
+        report.frames, report.windows_inferred, report.peak_mb
+    );
+    Ok(())
+}
 ```
 
 The same thing through the shipped harness, which also reports windows, wall
-clock and peak memory:
+clock and peak memory — and, with `--window`, does the load-time reshape below on
+the command line so you can measure the two windows against the same file:
 
 ```sh
 cargo run --release --example bench -- run --model melband_roformer_vocals.onnx \
     --input song.wav --out bench-out
+cargo run --release --example bench -- run --model melband_roformer_vocals.onnx \
+    --input song.wav --out bench-out --window 176400
 ```
+
+Every row of that TSV ends with the window read back off the live session, not
+echoed from the flag: a timing table should state the grid it timed.
 
 ## Getting a model
 
@@ -142,9 +155,7 @@ Download it, check the hash, and use it as it is. Nothing has to be converted
 first, because the export's stock window is the one it was trained with:
 
 ```rust
-use rust_roformer::engine::onnx::OnnxEngine;
-use std::path::Path;
-
+// still inside `main`, still the same file on disk:
 // the portable engine, at whatever window this file declares
 let full = OnnxEngine::load(Path::new("melband_roformer_vocals.onnx"))?;
 // or run the same weights on a 16 GB machine, without writing a new file
@@ -195,7 +206,12 @@ one question about these checkpoints that no MIT tag in the chain answers.
 ## Measuring it
 
 ```sh
-./scripts/bench_pair.sh --model-a big.onnx --model-b small.onnx --input track.wav
+# two files
+./scripts/bench_pair.sh --model-a melband_roformer_vocals.onnx \
+    --model-b shortened_4s.onnx --input track.wav
+# one file, two windows — the same claim, measured without a second artifact
+./scripts/bench_pair.sh --model-a melband_roformer_vocals.onnx \
+    --model-b melband_roformer_vocals.onnx --window-b 176400 --input track.wav
 ```
 
 Read `docs/benchmarks.md` before you trust any timing number, including the ones

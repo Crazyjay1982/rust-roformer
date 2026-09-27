@@ -966,9 +966,15 @@ impl OnnxEngine {
             // `prime_from`, which were neither inferred nor flushed here. Note that
             // the priming windows *are* counted — they really did run.
             windows_inferred: inferred,
-            // Windows whose finalized output came off the disk rather than from this
-            // call: `plan.first`, which includes the priming windows that ran again.
-            windows_resumed: plan.first,
+            // Windows neither inferred nor written by this call — the ones below
+            // `prime_from`, whose whole contribution was already flushed. This is
+            // the figure that keeps `windows_inferred + windows_resumed == n`;
+            // `plan.first` is *not* it, because the seam windows between there and
+            // here ran again to rebuild the pending crossfade even though their
+            // bytes came off disk. For "how much was already done" use
+            // `resumed_from_frames`, which is non-zero whenever the resume reused
+            // anything at all — including the case where it skipped nothing.
+            windows_resumed: plan.prime_from,
             resumed_from_frames: (plan.keep_frames > 0).then_some(plan.keep_frames),
         })
     }
@@ -1365,14 +1371,19 @@ mod tests {
             .separate(&track, &stems, &budget())
             .expect("the resumed run must finish");
         assert_eq!(resumed.frames, frames);
+        // The reuse is stated in frames and as a partition, not as "skipped more
+        // than nothing": a run cancelled at its first boundary has one window of
+        // output on disk and zero windows *skipped*, because that window is
+        // re-inferred as seam priming — bytes reused, count unmoved.
         assert!(
-            resumed.windows_resumed > 0,
-            "a resumed run reports what it did not recompute: {resumed:?}"
+            resumed.resumed_from_frames.is_some(),
+            "the continuing pass wrote the track from sample zero: {resumed:?}"
         );
-        assert!(resumed.resumed_from_frames.is_some());
-        assert!(
-            resumed.windows_inferred < starts.len(),
-            "it replays the seam, not the track: {resumed:?}"
+        assert_eq!(
+            resumed.windows_inferred + resumed.windows_resumed,
+            starts.len(),
+            "the two counts must partition the schedule: {resumed:?} over {} window(s)",
+            starts.len()
         );
         for (a, b) in [
             (&refs.vocals, &stems.vocals),

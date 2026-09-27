@@ -25,7 +25,12 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
   one pass, 44-byte header rewritten at each window boundary so the files on disk
   are always a playable prefix), plus a resume record checked field by field:
   mismatch means start over, never "continue from a stale prefix" and never
-  "fail with a broken file behind you".
+  "fail with a broken file behind you". Every failure, cancellation included, keeps
+  that checkpoint; [`stream::discard_staging`] is the caller's own, explicit way to
+  say the partial result is worthless, and no engine calls it for you — one arm of
+  this crate used to throw the pair away on `Cancelled`, which contradicted the
+  trait and the other arm, and a user who pressed stop is the last person who
+  wants an hour of inference deleted.
 - `mem` — per-platform memory figures (macOS `phys_footprint`, Windows available
   commit, Linux `/proc`), the refusal text classifier, and the pre-flight gate
   that prices a window before the first forward.
@@ -45,9 +50,13 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
 - `examples/bench.rs` — `synth` (deterministic test track, no model needed),
   `run`, and `resume-check` (cancelled-then-continued output must be
   byte-identical to uninterrupted, or it fails with the offset of the first
-  difference). `scripts/bench_pair.sh` + `scripts/pair_summary.awk` do
+  difference). `--window` reshapes the stock export at load time, and every row
+  ends with the window read back off the live session plus the count of windows
+  that came off disk, so a pass that quietly re-ran everything cannot be mistaken
+  for a resume. `scripts/bench_pair.sh` + `scripts/pair_summary.awk` do
   same-session, order-swapped A/B and print `inconclusive` when the difference is
-  inside the position term or the scatter.
+  inside the position term or the scatter; `--window-a/--window-b` let one file be
+  measured at two windows.
 - `scripts/audit_public.sh` — refuses to let machine paths, account-looking
   strings, credentials or model/audio binaries into the tree.
 - CI: fmt, clippy with warnings denied, tests on Linux/macOS/Windows with and

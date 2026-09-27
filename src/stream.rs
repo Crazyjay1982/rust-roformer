@@ -40,11 +40,13 @@
 //! logged and turned into a fresh start; **none of them is an error**. A
 //! checkpoint you cannot trust must never fail the step.
 //!
-//! Only *cancellation* discards staging ([`discard_staging`]), because only
-//! cancellation means "nobody wants this result". Every other failure — on a
-//! 16 GB laptop usually an allocation refusal — leaves the pair and its sidecar
-//! where they are, which is the entire point of checkpointing: the retry picks up
-//! at the last window that finished rather than at second zero.
+//! No failure discards staging — cancellation included. Every way a run can end
+//! early (a user pressing stop, or, on a 16 GB laptop, the usual allocation
+//! refusal) leaves the pair and its sidecar where they are, which is the entire
+//! point of checkpointing: the next call picks up at the last window that finished
+//! rather than at second zero. Deleting a checkpoint is the caller's own
+//! [`discard_staging`] call, because that is the one act here that cannot be
+//! undone, and a library cannot tell "pause" from "throw it away".
 
 use std::fs::File;
 use std::io::{self, BufReader, Seek, Write};
@@ -438,8 +440,10 @@ pub fn job_path(vocals_output: &Path) -> PathBuf {
 /// Remove a run's whole checkpoint: both `.part` files and the sidecar that binds
 /// them.
 ///
-/// Engines call this when a run is *cancelled*. A run that merely failed keeps
-/// them, which is the distinction the whole module exists to make.
+/// No engine calls this. Every way a run can end early — cancellation as much as
+/// an allocation refusal — leaves the pair for the next call, because discarding
+/// is the one act here a caller cannot undo. This is how a caller says it meant
+/// "I am not coming back to this one".
 pub fn discard_staging(vocals_output: &Path, background_output: &Path) {
     for path in [
         part_path(vocals_output),
@@ -1937,10 +1941,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// Only cancellation discards staging. A failure that is not cancellation leaves
-    /// the pair, the sidecar and their bytes exactly where they were.
+    /// `discard_staging` is the only thing that removes a checkpoint, and no engine
+    /// calls it: asked, all three artefacts go; not asked, the pair and its sidecar
+    /// outlive the run that wrote them and still report what is on disk.
     #[test]
-    fn only_cancellation_throws_the_checkpoint_away() {
+    fn a_checkpoint_only_disappears_when_the_caller_asks() {
         let dir = test_dir("cancel");
         let (v, b) = (dir.join("cancel_v.wav"), dir.join("cancel_b.wav"));
         let job = job_for(100);
@@ -1955,7 +1960,7 @@ mod tests {
                 job_path(&v).exists()
             ),
             (false, false, false),
-            "cancel must leave nothing for the next run to trip over"
+            "an explicit discard must leave nothing for the next run to trip over"
         );
 
         // The same pair written again, now abandoned by a failure: nothing removes

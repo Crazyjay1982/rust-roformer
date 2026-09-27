@@ -93,13 +93,57 @@ because the thing being compared against was the one carrying the error.
 ```sh
 cargo run --release --example bench -- synth --seconds 120 --out track.wav
 cargo run --release --example bench -- run --model <file> --input track.wav --repeat 3
+cargo run --release --example bench -- run --model <file> --input track.wav --window 176400
 cargo run --release --example bench -- resume-check --model <file> --input track.wav
 ./scripts/bench_pair.sh --model-a big.onnx --model-b small.onnx --input track.wav
+# one file, two windows: the same model on both arms, B reshaped at load time
+./scripts/bench_pair.sh --model-a melband_roformer_vocals.onnx \
+    --model-b melband_roformer_vocals.onnx --window-b 176400 --input track.wav
 ```
 
 `bench synth` needs no model and no audio: it writes a deterministic two-channel
 test signal, so you can measure the I/O path (which is where the interesting
 memory behaviour lives) before touching anything licensed.
+
+### Walked once on the stock export
+
+Against `smank/mel-band-roformer-vocals-onnx` as downloaded — 953,292,899 bytes,
+sha256 `64a4f3be…f561`, re-hashed on this machine before the run — and the 12 s
+`bench synth` track. What follows are *decisions*, not timings: the identical
+configuration (12 s, 5 windows of 176400, one machine, one day, one binary)
+measured 14.0 s, 26.8 s, 26.8 s, 29.3 s and 53.4 s across five sittings. That
+3.8× spread is the point of the section above, and no timing in this table is
+quoted as a result.
+
+| Requested | Outcome |
+| --- | --- |
+| (no `--window`, native 352800) | refused before any allocation: `needs ~19400 MB per forward, 15476 MB available` |
+| `--window 200000` | refused: not a multiple of the 441-sample hop |
+| `--window 705600` | refused: growing needs the iSTFT normalisation table regenerated |
+| `--window 352800` | refused — reshaping to the declared window is a no-op, and the native 8 s price does not fit |
+| `--window 176400` | accepted; the session reported `window_samples = 176400`, 5 windows, both stems 2,116,844 B |
+
+The accepted runs carried a process-lifetime peak of 6.0–7.0 GB
+(`phys_footprint`, macOS, whole harness process — it includes the 953 MB FP32 graph
+the session holds, so it is not a per-forward figure and not comparable with the
+Windows per-forward anchors).
+
+`resume-check --window 176400` then ran three passes: the control inferred all 5
+windows; the cancelled pass committed 3 (330,750 frames, 1,323,044 B of `.part`
+with its sidecar beside it); the continuing pass inferred 3, skipped 2 outright and
+started from 330,750 frames already on disk, and both stems came out
+**byte-identical** to the control. Those last two figures are why `resumed` and
+`resumed_from` are columns: a pass that quietly re-ran the whole track would still
+have produced identical bytes, and nothing in the timing distinguishes the two. The
+engine's own end-to-end test on a real 12 s excerpt prints the same partition
+(`529200 frames in 3 window(s) (2 resumed)`, `3 + 2 = 5`).
+
+One caveat that is easy to read backwards: on this synthetic track the *vocals*
+stem is silent (peak 0 of int16, the model finding no voice in two alternating
+tones) and the residual carries everything. That is the expected output for
+non-vocal input, and it is why the harness prints byte counts rather than claiming
+it separated anything — separation quality is measured on real audio in the
+sections above, not here.
 
 For the graph surgery there is a harder check than any timing number:
 `tools/reduce_window.py` derives the short-window file from the long-window one,

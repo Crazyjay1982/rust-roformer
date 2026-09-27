@@ -40,11 +40,12 @@ pub trait SeparationEngine {
 
     /// Separate `input` into `out`, streaming.
     ///
-    /// On [`crate::error::Error::Cancelled`] the staging files are kept, so a
-    /// later call with the same paths and [`crate::config::ResumeMode::Auto`]
-    /// can pick up where this one stopped. On any other error the same holds —
-    /// the difference is that only cancellation is treated as "the user will
-    /// want this result".
+    /// Every failure leaves the `.part` pair and its sidecar in place — including
+    /// [`crate::error::Error::Cancelled`] — so a later call with the same paths and
+    /// [`crate::config::ResumeMode::Auto`] picks up at the last window that
+    /// finished rather than at second zero. Deciding that a partial result is
+    /// worthless is not this trait's to make: that is
+    /// [`crate::stream::discard_staging`], and it cannot be undone.
     fn separate(
         &mut self,
         input: &Path,

@@ -83,10 +83,14 @@ pub struct SeparationOptions {
     /// Override the model's own window length in samples.
     ///
     /// `None` (the default) reads it from the loaded graph, so a stock export
-    /// runs at the window it was exported for. Setting this is how you ask for
-    /// a reduced-window graph produced by `tools/reduce_window.py` — the value
-    /// must agree with the file on disk, because the window is baked into the
-    /// graph as constants, not taken from the input shape.
+    /// runs at the window it was exported for. This field is a *statement about
+    /// the graph the engine already holds*, not a request the runtime can honour:
+    /// the window is baked into the graph as constants, so the value must agree
+    /// with it and a disagreement is an error rather than a resize. To run the
+    /// stock weights at a shorter window, reshape at load time with
+    /// `OnnxEngine::with_window(path, n)` — the constructor behind the `onnx`
+    /// feature — and set this to the same figure if you want the agreement
+    /// checked.
     pub window_samples: Option<usize>,
     /// Overlap between windows, for the linear crossfade. `None` = the default
     /// for this crate (1.5 s at 44.1 kHz), which is what the flush proofs are
@@ -149,11 +153,18 @@ pub struct SeparationReport {
     pub sample_rate: u32,
     /// Frames per channel in each output file.
     pub frames: usize,
-    /// Windows actually inferred this call (excludes the ones resumed from disk).
+    /// Windows this call actually inferred. Together with
+    /// [`Self::windows_resumed`] it accounts for the whole schedule, so the two sum
+    /// to the chunk count of a fresh run.
     pub windows_inferred: usize,
-    /// Windows skipped because they were already complete on disk.
+    /// Windows skipped because their output was already complete on disk. Reaching
+    /// a resumed seam can cost one window re-inferred *above* this figure, so this
+    /// can legitimately be 0 on a run that still reused a checkpoint — read
+    /// [`Self::resumed_from_frames`] for "was anything reused".
     pub windows_resumed: usize,
-    /// Frames that were already flushed when this call started, if any.
+    /// Frames that were already flushed when this call started, if any. `Some(n)`
+    /// with `n > 0` is the direct evidence that a resume had something to resume
+    /// from; `None` means this call wrote the track from sample zero.
     pub resumed_from_frames: Option<usize>,
     /// Peak resident footprint observed during this call, where the platform
     /// can report it. See `mem` for what this number is on each OS.

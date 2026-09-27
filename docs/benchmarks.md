@@ -105,15 +105,15 @@ cargo run --release --example bench -- resume-check --model <file> --input track
 test signal, so you can measure the I/O path (which is where the interesting
 memory behaviour lives) before touching anything licensed.
 
-### Walked once on the stock export
+### Walked once on the stock export, in a fresh clone
 
 Against `smank/mel-band-roformer-vocals-onnx` as downloaded — 953,292,899 bytes,
 sha256 `64a4f3be…f561`, re-hashed on this machine before the run — and the 12 s
-`bench synth` track. What follows are *decisions*, not timings: the identical
-configuration (12 s, 5 windows of 176400, one machine, one day, one binary)
-measured 14.0 s, 26.8 s, 26.8 s, 29.3 s and 53.4 s across five sittings. That
-3.8× spread is the point of the section above, and no timing in this table is
-quoted as a result.
+`bench synth` track, from a `git clone` of this repository with no other state.
+What follows are *decisions*, not timings: the identical configuration (12 s, 5
+windows of 176400, one machine, one day, one binary) measured 14.0 s, 15.7 s,
+26.8 s, 26.8 s, 29.3 s and 53.4 s across six sittings. That 3.8× spread is the
+point of the section above, and no timing in this table is quoted as a result.
 
 | Requested | Outcome |
 | --- | --- |

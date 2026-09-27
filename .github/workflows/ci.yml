@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  fmt-clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      # Deny only on warnings the diff introduces would be nicer, but this crate
+      # starts clean, so the bar is simply "clean".
+      - run: cargo clippy --no-default-features --all-targets -- -D warnings
+      - run: cargo clippy --all-targets -- -D warnings
+
+  # `rust-version` in Cargo.toml is an intent until a machine checks it.
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.75
+      - run: cargo check --no-default-features
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # No model weights and no audio exist in this repository, so the default
+      # feature set is exercised without any inference: the weight-requiring arms
+      # skip themselves. Keep that property — a test that needs a 953 MB file
+      # downloaded from Hugging Face does not belong in this job.
+      - run: cargo test --no-default-features
+      - run: cargo test
+
+  # The MLX engine needs a local MLX build; it is compiled and exercised on
+  # Apple Silicon runners only when one is available, and its absence here is
+  # stated rather than hidden.
+  mlx-apple-silicon:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check --no-default-features --features mlx

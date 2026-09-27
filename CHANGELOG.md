@@ -1,0 +1,55 @@
+# Changelog
+
+All notable changes to this crate. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## 0.1.0 — unreleased
+
+First extraction from a shipping desktop application. Not yet published: no
+remote exists, so `Cargo.toml` deliberately carries no `repository`.
+
+### Added
+
+- `graph` — locates and rewrites the input window baked into a Mel-Band RoFormer
+  export, in memory: four `int64` `Constant` payloads and the input/output last
+  dimensions. Refuses to grow past the iSTFT normalisation table's capacity, to
+  touch a graph that carries the window inside a weight, and to rewrite a
+  dimension varint that would change width (that case belongs to the offline
+  tool, which re-serialises).
+- `audio` — chunk-at-a-time WAV decode and a chunked resampler, so peak memory
+  does not scale with track length. The exact-vs-last-bit behaviour across sample
+  rates is asserted in tests (48 kHz→16 kHz is bit-identical; 44.1 kHz→16 kHz is
+  not, by arithmetic, not by neglect).
+- `stream` — `WavSource` (windowed reads) and `StemWriter` (both stems written in
+  one pass, 44-byte header rewritten at each window boundary so the files on disk
+  are always a playable prefix), plus a resume record checked field by field:
+  mismatch means start over, never "continue from a stale prefix" and never
+  "fail with a broken file behind you".
+- `mem` — per-platform memory figures (macOS `phys_footprint`, Windows available
+  commit, Linux `/proc`), the refusal text classifier, and the pre-flight gate
+  that prices a window before the first forward.
+- `engine::onnx` — ONNX Runtime engine: windowed forward, linear crossfade,
+  streaming output, checkpoint/resume, cancellation between windows, the gate.
+  The arena is off by default; that choice is measured (8.83 GB peak with it on,
+  3,440 MB with it off, identical output).
+- `engine::mlx` (`--features mlx`, Apple Silicon) — the architecture
+  re-implemented in Rust: own STFT, mel band split, alternating time/frequency
+  transformer blocks, mask estimator. Accepted against a PyTorch FFT reference
+  rather than the ONNX graph's output, for the reason recorded in its module
+  docs. `--features mlx` needs a provisioned MLX; see README.
+- `tools/reduce_window.py` — the same window edit, offline and byte-exact;
+  `tools/extract_onnx_weights.py` — the 672-tensor `.safetensors` the MLX engine
+  loads, derived from the stock export. Neither redistributes weights, and this
+  repository contains no model file and no audio.
+- `examples/bench.rs` — `synth` (deterministic test track, no model needed),
+  `run`, and `resume-check` (cancelled-then-continued output must be
+  byte-identical to uninterrupted, or it fails with the offset of the first
+  difference). `scripts/bench_pair.sh` + `scripts/pair_summary.awk` do
+  same-session, order-swapped A/B and print `inconclusive` when the difference is
+  inside the position term or the scatter.
+- `scripts/audit_public.sh` — refuses to let machine paths, account-looking
+  strings, credentials or model/audio binaries into the tree.
+- CI: fmt, clippy with warnings denied, tests on Linux/macOS/Windows with and
+  without default features, and an MSRV job so `rust-version` is a claim someone
+  checks rather than decor.

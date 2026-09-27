@@ -1,0 +1,63 @@
+[package]
+name = "rust-roformer"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "Apache-2.0"
+description = "Mel-Band RoFormer vocal separation in Rust — ONNX Runtime and MLX engines, engineered to stream arbitrarily long audio inside a 16 GB budget"
+# `repository` is added when the public remote exists — see CHANGELOG.
+keywords = ["audio", "source-separation", "vocal-remover", "mel-band-roformer", "onnx"]
+categories = ["multimedia::audio", "science"]
+readme = "README.md"
+# No model weights, no sample audio: see NOTICE and docs/LICENSES.md.
+include = ["src/**", "tools/**", "examples/**", "docs/**", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"]
+
+[features]
+default = ["onnx", "ort-download-binaries"]
+# ONNX Runtime engine (portable CPU path; this is what runs everywhere).
+onnx = ["dep:ort"]
+# MLX engine (Apple Silicon GPU): a from-scratch Rust implementation of the
+# Mel-Band RoFormer architecture, not an ONNX graph run.
+mlx = ["dep:mlx-rs"]
+# Let `ort` fetch a prebuilt ONNX Runtime at build time. This download needs a
+# TLS provider, and `ort`'s defaults are off in this crate, so the provider is
+# named here explicitly: rustls by default (portable, no system OpenSSL), swap to
+# `ort-tls-native` if you would rather use the OS stack. Turn
+# `ort-download-binaries` off and pair it with `ort-load-dynamic` to link against
+# an ONNX Runtime you ship yourself — then no TLS feature is needed at all.
+# Enabling both TLS features is a compile error from `ort-sys`, deliberately.
+ort-download-binaries = ["ort?/download-binaries", "ort?/tls-rustls"]
+ort-tls-native = ["ort?/tls-native"]
+ort-load-dynamic = ["ort?/load-dynamic"]
+cuda = ["ort?/cuda"]
+coreml = ["ort?/coreml"]
+
+[dependencies]
+log = "0.4"
+ndarray = "0.17"
+hound = "3.5"
+rubato = "0.16"
+serde = { version = "1", features = ["derive"] }
+
+[dependencies.ort]
+version = "=2.0.0-rc.13"
+default-features = false
+features = ["half"]
+optional = true
+
+[dependencies.mlx-rs]
+version = "0.25"
+optional = true
+
+[target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_System_ProcessStatus",
+    "Win32_System_SystemInformation",
+] }
+
+[profile.release]
+opt-level = 3

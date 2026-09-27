@@ -1,0 +1,10 @@
+/target
+Cargo.lock
+*.wav
+*.onnx
+*.safetensors
+*.npy
+.DS_Store
+bench-out/
+__pycache__/
+*.pyc

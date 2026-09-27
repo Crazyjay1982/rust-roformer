@@ -1,0 +1,15 @@
+rust-roformer
+Copyright 2026 the rust-roformer authors (the Rust code in this repository)
+
+This product bundles no model weights and no audio samples. It runs third-party
+Mel-Band RoFormer checkpoints that you download yourself.
+
+Upstream work whose graphs/weights this code can run, and whose architecture it
+re-implements:
+  - Mel-Band RoFormer architecture: ZFTurbo, MIT, arXiv:2310.01809
+  - vocals checkpoint: KimberleyJSN/melbandroformer (card tag: MIT)
+  - ONNX export: smank/mel-band-roformer-vocals-onnx (card tag: MIT)
+  - baseline comparison used while validating: mixxxdj/demucs (MIT)
+Each of those carries its own license terms for the *weights*. Training-data
+provenance for the vocals checkpoint is not stated on any of those cards, which
+is disclosed in docs/LICENSES.md rather than resolved by the MIT tags above.

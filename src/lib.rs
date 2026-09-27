@@ -2,7 +2,7 @@
 //!
 //! Mel-Band RoFormer vocal/background separation in Rust.
 //!
-//! The model itself is someone else's (see [`NOTICE`]); what is ours is
+//! The model itself is someone else's (see the `NOTICE` file); what is ours is
 //! everything around it: two inference engines and the I/O layer that lets a
 //! four-hour track be separated on a 16 GB laptop without ever holding the
 //! track, the intermediate buffers, or the result in memory at the same time.
@@ -43,7 +43,7 @@
 //!
 //! No model weights and no audio. Weights are licensed separately from this
 //! code, and the checkpoints were fitted to recorded music; see
-//! [`docs/LICENSES.md`] and [`NOTICE`] crate file
+//! [`docs/LICENSES.md`] and the `NOTICE` file
 //! for what that does and does not let you do. `tools/` turns a stock export you
 //! download yourself into the reduced-window graph and into the weight file the
 //! MLX engine loads.

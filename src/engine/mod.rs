@@ -4,7 +4,7 @@
 //! run the model window by window, crossfade, and stream the two stems to disk
 //! so that a four-hour input costs the same memory as a four-second one.
 //!
-//! * [`onnx`] — runs an exported graph through ONNX Runtime. Portable, and the
+//! * `onnx` — runs an exported graph through ONNX Runtime. Portable, and the
 //!   path you want on a machine without Apple Silicon.
 //! * `mlx` (feature `mlx`, Apple Silicon only) — a from-scratch Rust
 //!   implementation of the Mel-Band RoFormer architecture on MLX tensors. It

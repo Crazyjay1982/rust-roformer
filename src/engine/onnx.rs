@@ -25,7 +25,7 @@
 //! The window is baked into the graph as `int64` constants plus the input and
 //! output dimensions ([`crate::graph`]), so [`OnnxEngine::with_window`] patches
 //! those bytes in memory and hands the result to
-//! [`ort::session::Session::commit_from_memory`]. Nothing derived is ever written
+//! `ort`'s `Session::builder().commit_from_memory(..)`. Nothing derived is ever written
 //! to disk: the file the user downloaded stays the file on disk. The transient
 //! cost is one buffer holding the whole model (≈ the file size — 259 MiB for the
 //! 271,832,758-byte int8 vocals export), released as soon as the session has
@@ -390,11 +390,13 @@ impl OnnxEngine {
 
     /// Per-forward commit (MiB) a window of this length is *estimated* to cost.
     ///
-    /// Two anchors, fitted by the `c + q·T²` law the module docs state; see
-    /// [`SHORT_ANCHOR`] and [`LONG_ANCHOR`] for the numbers and for the class of
-    /// machine they came from. Inside the anchors this is an interpolation; outside
-    /// them it is the same curve extended, and the answer is a shape rather than a
-    /// measurement.
+    /// Two measured anchors, fitted by the `c + q·T²` law the module docs state:
+    /// 176 400 samples (4 s) ≈ 5 100 MB and 352 800 samples (8 s) ≈ 19 400 MB of
+    /// commit per forward, both on a 16 GB-class Windows machine and both
+    /// independent of track length. Between the anchors this is an interpolation;
+    /// outside them it is the same curve extended, so the answer is a shape rather
+    /// than a measurement. The pre-flight log line names which of those two cases
+    /// applied, so a refusal says whether its number was measured or extended.
     pub fn estimate_forward_mb(window: usize) -> u64 {
         if window == 0 {
             return 0;
@@ -1003,8 +1005,8 @@ impl OnnxEngine {
 /// `[batch, source, channel, length]` with `batch == 1`, so a row is one
 /// contiguous run of `length` samples at `(source * channels + channel) * length`
 /// in the flat buffer. Keeping the buffer flat rather than an `Array4` is what lets
-/// the merge loop hand out plain slices — the shape checks happen once, in
-/// [`OnnxEngine::forward`], and indexing after that cannot be wrong about the axis
+/// the merge loop hand out plain slices — the shape checks happen once, when a
+/// forward's output is adopted, and indexing after that cannot be wrong about the axis
 /// order without being wrong here too.
 pub struct Sources {
     data: Vec<f32>,

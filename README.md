@@ -142,11 +142,13 @@ Download it, check the hash, and use it as it is. Nothing has to be converted
 first, because the export's stock window is the one it was trained with:
 
 ```rust
+use rust_roformer::engine::onnx::OnnxEngine;
+use std::path::Path;
+
 // the portable engine, at whatever window this file declares
-let mut full = OnnxEngine::load(Path::new("melband_roformer_vocals.onnx"))?;
+let full = OnnxEngine::load(Path::new("melband_roformer_vocals.onnx"))?;
 // or run the same weights on a 16 GB machine, without writing a new file
-let mut small = OnnxEngine::with_window(Path::new("melband_roformer_vocals.onnx"), 176_400)?;
-# Ok::<(), rust_roformer::Error>(())
+let small = OnnxEngine::with_window(Path::new("melband_roformer_vocals.onnx"), 176_400)?;
 ```
 
 `with_window` is the library doing window surgery on a buffer at load time. A

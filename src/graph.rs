@@ -7,7 +7,7 @@
 //! last dimension of the graph's input and output. ONNX Runtime has no knob for
 //! it. That left two options — ask every user to run an offline script over their
 //! downloaded model, or apply the same edit to a buffer at load time and hand the
-//! bytes to [`ort::session::Session::commit_from_memory`]. This module is the
+//! bytes to `ort`'s `Session::builder().commit_from_memory(..)`. This module is the
 //! second one, so the stock export stays the file on disk and the window becomes
 //! a load-time parameter.
 //!

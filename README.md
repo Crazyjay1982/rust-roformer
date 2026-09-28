@@ -3,7 +3,7 @@
 <!-- The crates.io, docs.rs and CI badges go here once the remote and the first
      release exist; a badge that 404s is worse than a badge that is missing. -->
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![MSRV](https://img.shields.io/badge/MSRV-1.75-lightgrey)
+![MSRV](https://img.shields.io/badge/MSRV-1.88-lightgrey)
 ![weights included](https://img.shields.io/badge/weights%20included-none-green)
 [![home](https://img.shields.io/badge/home-deepforgehub.com-informational)](https://deepforgehub.com)
 

@@ -121,6 +121,14 @@ for that first release rather than pointing at something that 404s.
   the bare `DeepForge`, which an unrelated 755-star deep-learning IDE already
   occupies on GitHub. If a registered legal entity owns this code, that name
   should replace it here and nowhere else needs to change.
+- `rust-version` corrected from 1.75 to **1.88**, and the MSRV job in CI now checks
+  the configuration that number is actually about. The old value held only for
+  `--no-default-features`: `ort` and `ort-sys` rc.13 declare a 1.88 floor, so
+  `cargo +1.85 check` is refused outright and `cargo +1.75 check` fails on
+  `ort-sys`'s `edition2024` manifest — while the CI job asked only about the
+  engine-free build, which meant the badge was green and false at the same time.
+  Both facts are now measured in one job (1.88 default, 1.75 without an engine),
+  and the crate was never published, so no one is being moved.
 - `Cargo.toml` gained `repository` and `homepage`; the README's install block
   names the real git URL instead of an `OWNER` placeholder, so a reader can install
   this today without waiting for a release.

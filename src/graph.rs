@@ -551,7 +551,7 @@ fn table_capacity(buf: &[u8], tensor: (usize, usize)) -> Result<Option<usize>> {
 /// not leave a half-patched buffer that would still load and quietly compute the
 /// wrong thing.
 pub fn patch_window(buf: &mut [u8], target: usize) -> Result<GraphReport> {
-    if target == 0 || target % HOP != 0 {
+    if target == 0 || !target.is_multiple_of(HOP) {
         return Err(Error::Model {
             detail: format!("window {target} is not a positive multiple of the hop {HOP}"),
         });

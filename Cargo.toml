@@ -2,7 +2,13 @@
 name = "rust-roformer"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+# The default (ONNX) build's floor is `ort`/`ort-sys` rc.13's own declared
+# 1.88; cargo refuses 1.85 outright on it, so 1.75 — the value this crate
+# carried while unpublished — was only ever true of the engine-free build, and
+# CI now checks the configuration people actually build rather than the one
+# that happened to pass. `--features mlx` needs a provisioned MLX and is
+# outside this claim.
+rust-version = "1.88"
 license = "Apache-2.0"
 description = "Mel-Band RoFormer vocal separation in Rust — ONNX Runtime and MLX engines, engineered to stream arbitrarily long audio inside a 16 GB budget"
 repository = "https://github.com/Crazyjay1982/rust-roformer"

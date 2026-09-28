@@ -47,6 +47,18 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
   `tools/extract_onnx_weights.py` — the 672-tensor `.safetensors` the MLX engine
   loads, derived from the stock export. Neither redistributes weights, and this
   repository contains no model file and no audio.
+- `rust-roformer`, the command line: `--model`, `--out`, `--window` (a sample
+  count, or seconds with an `s` suffix), `--engine`, `--threads`, `--fresh`,
+  `--quiet`. Seven options, each one a thing the library can already be asked to
+  do and none a promise the crate does not make — hence no `--gpu` (the ONNX arm
+  is CPU, the MLX arm is the Apple Silicon path) and no decoder beyond WAV. It
+  builds with either engine or neither, and `--version` says which it got; exit
+  codes are 0 done, 1 failed, 2 mistyped; a failure that means "this machine is
+  too small for that window" says so and names the knob to turn. Stopping it is
+  safe by construction rather than by a signal handler, because the pair on disk
+  *is* the checkpoint: measured on a 12-second track interrupted eight seconds in
+  (`SIGINT`, two of five windows flushed), the identical command resumed from
+  frame 220,500 and wrote stems byte-identical to the uninterrupted run.
 - `examples/bench.rs` — `synth` (deterministic test track, no model needed),
   `run`, and `resume-check` (cancelled-then-continued output must be
   byte-identical to uninterrupted, or it fails with the offset of the first

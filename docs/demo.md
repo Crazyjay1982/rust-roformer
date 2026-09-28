@@ -14,10 +14,10 @@ those exact bytes produce.
 The script needs `curl` and `ffmpeg` (the crate reads WAV only, and both sources
 are Ogg). It fetches the file, checks its SHA-256, cuts a 12-second excerpt, runs
 `examples/bench.rs` on it, and prints where the three files are. Everything lands
-in `demo-audio/` and `demo-out/` under the directory you ran it from; neither is
-in the repository, and `.gitignore` makes sure a stray `git add -A` cannot put
-them there. `--window`, `--seconds` and `--source` are passed straight to the
-harness, so this is also the shortest way to watch the memory gate refuse:
+in `demo-audio/` and `demo-out/window-<n>/` under the directory you ran it from;
+neither is in the repository, and `.gitignore` makes sure a stray `git add -A`
+cannot put them there. `--window`, `--seconds` and `--source` are passed straight
+to the harness, so this is also the shortest way to watch the memory gate refuse:
 
 ```text
 $ ./scripts/demo.sh --model melband_roformer_vocals.onnx --window 352800
@@ -27,6 +27,20 @@ bench: memory gate: this window needs ~19400 MB per forward, 14281 MB available
 That is exit 1 on a 16 GB machine before anything is allocated. The window the
 script asks for by default (176400 = 4 s) is not a workaround baked into a
 different file: it is the same 953 MB export, reshaped in memory at load time.
+
+Once the excerpt exists, the tool you would actually install can run on it —
+the harness is for measuring, the command line is for working:
+
+```sh
+rust-roformer --model melband_roformer_vocals.onnx --window 4s -o stems demo-audio/aria_12s.wav
+```
+
+Both paths produce the same bytes for the same window (checked on these excerpts,
+`vocals.wav` and `background.wav` each identical), which is the least this crate
+could do while claiming the harness measures what it ships. The README's
+[Quick start](../README.md#quick-start) shows that command's resume behaviour
+verbatim: a run stopped eight seconds into a twelve-second track, the same line
+typed again, and `continued from frame 220,500` in the summary.
 
 ## The two sources
 

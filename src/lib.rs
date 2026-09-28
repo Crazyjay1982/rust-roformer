@@ -46,6 +46,15 @@
 //!   STFT, band-split, alternating time/freq transformer, mask estimator —
 //!   loading weights extracted from the exported checkpoint.
 //!
+//! ## From a shell
+//!
+//! The `rust-roformer` binary exposes exactly the list above — window, threads,
+//! checkpoint, cancellation — behind seven options, so the behaviours that are
+//! otherwise only visible from Rust (a refusal before allocation, a run that
+//! continues where an interrupted one stopped) can be seen without a `main`.
+//! `rust-roformer --help` is the reference, and the README's Quick start shows a
+//! resumed run verbatim.
+//!
 //! ## What is not in this repository
 //!
 //! No model weights and no audio. Weights are licensed separately from this

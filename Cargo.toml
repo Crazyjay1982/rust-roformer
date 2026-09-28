@@ -30,6 +30,15 @@ include = [
     "CHANGELOG.md",
 ]
 
+# The command line, so the three behaviours that only show up at run time — the
+# memory gate refusing a window, a long track streamed in fixed memory, an
+# interrupted run continuing — can be seen without writing Rust. No
+# `required-features`: it builds with either engine, with neither, and says which
+# it has (`--version`) rather than silently disappearing from the build.
+[[bin]]
+name = "rust-roformer"
+path = "src/bin/rust_roformer/main.rs"
+
 [features]
 default = ["onnx", "ort-download-binaries"]
 # ONNX Runtime engine (portable CPU path; this is what runs everywhere).

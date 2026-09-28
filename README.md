@@ -26,17 +26,21 @@ groups vs a mel filterbank), so **their weights are not interchangeable**: a
 the name in the README says.
 
 ```sh
-cargo add rust-roformer                              # crates.io release pending
-cargo add --git https://github.com/OWNER/rust-roformer   # until then
+cargo install rust-roformer                              # the command line
+cargo add rust-roformer                                  # or the library
+# both pending: crates.io has no release yet, so until then —
+cargo install --git https://github.com/OWNER/rust-roformer
 ```
 
 **Use it if** your application embeds a separation step and runs somewhere memory
 is the binding constraint: a static-shape graph you must not OOM on, jobs long
-enough to be killed halfway through, and a build that has to work on Windows.
+enough to be killed halfway through, and a build that has to work on Windows. Or
+if you want one command that separates a track on a laptop without a Python
+environment.
 
 **Skip it if** you want the best possible separation regardless of footprint (run
-the Python toolchain on a GPU), you need drums/bass/6-stem, or you wanted a command
-line to type into — there is a measurement harness, not a CLI.
+the Python toolchain on a GPU), you need drums/bass/6-stem, or you need CUDA —
+the ONNX arm is CPU and the accelerated arm is Apple Silicon.
 
 ## The one number that explains the design
 
@@ -129,6 +133,48 @@ away from would have hidden that.
 
 ## Quick start
 
+### One command
+
+`aria_12s.wav` below is the twelve-second excerpt `scripts/demo.sh` downloads and
+names; the model is the stock export you fetched yourself. This is the *second*
+run of the identical command line — the first was stopped with Ctrl-C eight
+seconds in, with two of five windows already flushed — and the output is verbatim
+except that the model path is shortened to its filename:
+
+```console
+$ rust-roformer --model melband_roformer_vocals.onnx --window 4s -o out aria_12s.wav
+onnx · window 176400 samples (4.000 s, 400 hops) · 4 threads
+input aria_12s.wav · 529,200 frames (12.000 s at 44.1 kHz) · source 44100 Hz
+[onnx] separating: window 1/5, 41%
+[onnx] separating: window 3/5, 62%
+[onnx] publishing: window 5/5, 100%
+wrote out/vocals.wav (2,116,844 B) and out/background.wav (2,116,844 B)
+  529,200 frames at 44100 Hz · 4 windows inferred, 1 skipped
+  continued from frame 220,500 — everything before it was already on disk
+  peak 7,827 MB in this process (lifetime high-water, not per window)
+  10.4 s elapsed here
+```
+
+There is no `--resume` flag: a checkpoint that describes this exact job (same
+input bytes and mtime, same model bytes and mtime, same window and overlap) is
+used, and anything else starts over rather than appending to the wrong track.
+`--fresh` says discard it. The two numbers at the end are the two halves of that
+statement — 4 + 1 = the 5 windows of the schedule, and 220,500 frames were on disk
+before this call began. A resumed run's output was byte-identical to the same
+command run without interruption, which is the only property worth having.
+
+`--window 4s` is not a different model file: the stock export declares 352800
+samples (8 s) and this reshapes that graph at load time, which is what the memory
+gate below prices.
+
+That is the whole surface: `--model`, `--out`, `--window`, `--engine`,
+`--threads`, `--fresh`, `--quiet`, and `rust-roformer --help` for what each one
+means, including what Ctrl-C costs. No `--gpu` (the ONNX arm is CPU, the MLX arm
+is the Apple Silicon path), and no format conversion (WAV in; `ffmpeg` for the
+rest).
+
+### As a library
+
 ```rust
 use rust_roformer::config::{SeparationOptions, StemPaths};
 use rust_roformer::engine::{onnx::OnnxEngine, SeparationEngine};
@@ -152,7 +198,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-The same thing through the shipped harness — `bench` below is
+### Through the harness
+
+The same thing through the measurement harness — `bench` below is
 `cargo run --release --example bench --` — which is where the interesting part
 is: what the crate *refuses*, in its own words. This is a real session on a 16 GB
 Apple Silicon laptop against the unmodified stock export, output verbatim except
@@ -294,6 +342,15 @@ command, and what the resulting stems measure:
   in the voice band.
 * `vocals + background` reproduces the input to **75 dB**, so the mask is a
   partition of the mixture rather than an attenuated copy of it.
+
+Once the script has fetched and cut the excerpt (it prints both paths), the file
+through the command line is one more command — which is also how to compare the
+two windows against each other by ear:
+
+```sh
+rust-roformer --model melband_roformer_vocals.onnx --window 4s -o stems demo-audio/aria_12s.wav
+rust-roformer --model melband_roformer_vocals.onnx --window 2.5s -o stems-2-5s demo-audio/aria_12s.wav
+```
 
 Those are descriptions, not an SI-SDR claim — a commercial track has no
 ground-truth stems, and [docs/demo.md](docs/demo.md) says so where the numbers

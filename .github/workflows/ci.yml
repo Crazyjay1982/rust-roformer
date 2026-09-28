@@ -18,20 +18,22 @@ jobs:
       - run: cargo clippy --no-default-features --all-targets -- -D warnings
       - run: cargo clippy --all-targets -- -D warnings
 
-  # `rust-version` in Cargo.toml is an intent until a machine checks it — and the
-  # check has to run against the configuration people actually build. Measured here
-  # rather than copied from a dependency's README: the default set needs 1.88
-  # (`ort` and `ort-sys` rc.13 declare that floor; 1.85 is refused outright), while
-  # the engine-free library still compiles on 1.75. Checking only the latter would
-  # have kept a badge green by asking the wrong question.
+  # `rust-version` in Cargo.toml is an intent until a machine checks it, and the
+  # check has to cover both feature sets: this job is what keeps the badge in the
+  # README from being decoration.
+  #
+  # Why 1.88 and not the 1.75 this crate originally claimed: `ort` and `ort-sys`
+  # rc.13 declare a 1.88 floor, so `cargo +1.85 check` is refused before anything
+  # compiles; and the library itself now calls `usize::is_multiple_of` (1.87+), so
+  # there is no older toolchain left to test even with the engine switched off.
+  # Both were measured, not read off a changelog.
   msrv:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88
-      - uses: dtolnay/rust-toolchain@1.75
-      - run: cargo +1.88 check
-      - run: cargo +1.75 check --no-default-features
+      - run: cargo +1.88 check --all-targets
+      - run: cargo +1.88 check --no-default-features --all-targets
 
   test:
     strategy:

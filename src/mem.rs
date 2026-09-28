@@ -509,8 +509,9 @@ mod linux {
     fn field(text: &str, key: &str) -> Option<u64> {
         text.lines().find_map(|line| {
             let rest = line.strip_prefix(key)?;
-            rest.trim()
-                .split_whitespace()
+            // No `trim()` here: `split_whitespace` already skips leading
+            // whitespace, and `field` is the whole parser for `/proc/meminfo`.
+            rest.split_whitespace()
                 .next()?
                 .parse::<u64>()
                 .ok()

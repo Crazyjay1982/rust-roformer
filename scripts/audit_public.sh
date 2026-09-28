@@ -15,6 +15,10 @@
 # one regex per line, `#` for comments. A clone without that file still runs the
 # generic gate; it just cannot check for somebody else's account names, and that
 # is the correct behaviour for a public repository.
+#
+# Two subjects, not one: the file walk below cannot see `git log`, and a push
+# publishes author and committer identities exactly as loudly as it publishes
+# source lines. Hence the identity sweep further down, over the same patterns.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 
@@ -68,6 +72,33 @@ if [ -n "$weights" ]; then
   status=1
 fi
 
+# Second subject for the same pattern lists: `git push` publishes author and
+# committer identities as loudly as it publishes source lines, GitHub search
+# indexes them, and a rewrite after the fact is visible in every fork that was
+# cloned in between. The file walk above cannot see any of that because it
+# excludes `.git` — which is the right call for weights and wrong for metadata.
+identities=$(git log --format='author %an <%ae>%ncommitter %cn <%ce>' HEAD 2>/dev/null)
+if [ -z "$identities" ]; then
+  echo "audit: no commits reachable from HEAD — identity sweep skipped" >&2
+else
+  for pat in "${BANNED[@]}"; do
+    hits=$(printf '%s\n' "$identities" | grep -E "$pat" 2>/dev/null)
+    if [ -n "$hits" ]; then
+      printf '\n\033[31mHIT (commit metadata)\033[0m %s\n%s\n' "$pat" "$hits"
+      status=1
+    fi
+  done
+  # Commits that only other refs reach — a rewrite's backup branch, filter-branch's
+  # own refs/original — are not sent by a plain `git push`, so this is a note and not
+  # a failure: failing here would block the push that deletes them. The count is
+  # printed and the identities are not, because naming them here would put the exact
+  # strings this gate exists to keep out of the transcript.
+  other=$(git rev-list --count --all --not HEAD 2>/dev/null || echo 0)
+  if [ "$other" != 0 ]; then
+    printf '\naudit: note — %s commit(s) reachable only from refs other than HEAD; not pushed by `git push`, deleted after it lands\n' "$other"
+  fi
+fi
+
 # A tracked file that only exists on this machine is the same leak in a different
 # shape: `git ls-files` is what a public remote would publish. And crates.io
 # publishes what `include` selects, which outranks .gitignore entirely — so the
@@ -87,6 +118,6 @@ if [ -f "$LOCAL_LIST" ]; then
 fi
 
 if [ "$status" = 0 ]; then
-  echo "audit OK: no forbidden strings, no weight/audio files, private list untracked"
+  echo "audit OK: no forbidden strings in files or commit metadata, no weight/audio files, private list untracked"
 fi
 exit $status

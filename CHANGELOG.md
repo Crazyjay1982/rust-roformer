@@ -80,12 +80,23 @@ for that first release rather than pointing at something that 404s.
   patterns live in a gitignored `scripts/audit-local.txt` that a public clone does
   not have. The script fails if that file is ever tracked, and each class of leak —
   path, private name, weight file, tracked local list — was planted and proved to
-  turn it red. The scan also covers **commit metadata** now, because that is the one
-  thing `git push` publishes which a file walk cannot see: the same patterns are run
-  over `git log`'s author and committer identities (eleven commits carrying a
-  personal address was what the first run found here), plus a non-fatal note when
-  commits sit reachable only from other refs, since a plain push does not send those
-  and `--all` does.
+  turn it red. The scan has a second subject as well: **commit metadata**, because
+  that is the one thing `git push` publishes which a file walk cannot see — the walk
+  excludes `.git`, which is right for weights and wrong for identities. The same two
+  pattern lists are run over `git log`'s author and committer lines; the check was
+  motivated by eleven commits in this repository's own pre-rewrite history carrying a
+  personal address that every file in the tree had been held clean of, and the
+  history that is pushed now carries none. Being exact about the ordering: an earlier
+  entry here described this sweep, and the commit that carried it touched only
+  `CHANGELOG.md` — so the description sat in a published file with no code behind it.
+  That is the failure mode this gate exists to catch in someone else's work, so it is
+  named rather than smoothed over: the sweep exists as of this entry, and its probe
+  is an empty commit authored by a banned address, which turns the run red on one
+  generic domain pattern and one local name pattern. Commits reachable only from
+  other refs (a rewrite's backup branch, filter-branch's own `refs/original`) produce
+  a note carrying a *count*, not the identities: a plain push does not send them,
+  failing on them would block the push that lands the fix, and printing them would
+  write into the transcript the strings this gate keeps out of the repository.
 - `scripts/demo.sh` + `docs/demo.md` — a listening example that costs the
   repository nothing it does not already refuse to carry: two recordings from
   Wikimedia Commons (an aria over an orchestra, and an a cappella control), named
@@ -127,12 +138,14 @@ for that first release rather than pointing at something that 404s.
   `cargo +1.85 check` is refused outright and `cargo +1.75 check` fails on
   `ort-sys`'s `edition2024` manifest — while the CI job asked only about the
   engine-free build, which meant the badge was green and false at the same time.
-  Both facts are now measured in one job (1.88 default, 1.75 without an engine),
-  and the crate was never published, so no one is being moved. One side effect
-  worth naming: the old value had been silencing `clippy::manual_is_multiple_of`
-  legitimately (`u*::is_multiple_of` is 1.87+), so raising it surfaced two sites —
-  the hop rule in `graph.rs` and the CLI's digit-grouping helper — now written with
-  the method, with the gate's own tests unchanged.
+  The crate was never published, so no one is being moved. Worth being exact about
+  the side effect: raising the number surfaced two
+  `clippy::manual_is_multiple_of` sites the old value had legitimately silenced
+  (`u*::is_multiple_of` is 1.87+), and applying that method in `graph.rs` is what
+  killed the last remnant of the old claim — the engine-free build no longer
+  compiles on 1.75 either, so the first version of this very bullet, which said CI
+  would check "1.75 without an engine", was corrected before it could sit in a
+  workflow that fails on its own premise.
 - `Cargo.toml` gained `repository` and `homepage`; the README's install block
   names the real git URL instead of an `OWNER` placeholder, so a reader can install
   this today without waiting for a release.

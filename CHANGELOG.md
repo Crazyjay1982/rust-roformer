@@ -239,6 +239,15 @@ for that first release rather than pointing at something that 404s.
   rise, and would include maxima this sampler never saw). That is a user-visible
   semantics change to a shipped figure, so it waits for a decision instead of riding
   in with a test fix.
+- `actions/checkout` went from v4 to v7 in `ci.yml`. Not cosmetic: v4 still
+  declares the Node 20 runtime the runners dropped, so every job printed a
+  deprecation warning next to an otherwise clean run — and a warning that is always
+  there stops being a signal, which is the same failure mode as a badge that is
+  always green. Checked before bumping rather than after: v5/v6/v7's `action.yml`
+  all say `using: node24`, and the one breaking change shared across those three
+  (the safer `pull_request_target` defaults, backported as far down as v4) does not
+  reach this workflow, which triggers on `pull_request` where the token is already
+  read-only and passes no inputs to checkout at all.
 - The README's window examples are now the round set `8 s / 4 s / 2 s`, and a `2.5s`
   one is gone: what a reader copies out of a README should be what the memory figures
   cover. The parser still takes any hop multiple including fractional seconds — a

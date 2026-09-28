@@ -4,11 +4,17 @@ on:
   push:
   pull_request:
 
+# v7, not v4: the runner moved off Node 20 and checkout@v4 still declares it, which
+# makes every job print a deprecation warning beside an otherwise clean run. All four
+# usages take no inputs, so the one breaking change on this line (the safer
+# `pull_request_target` defaults that landed in v5/v6/v7 together) does not reach us —
+# this workflow triggers on `pull_request`, where the token is already read-only.
+
 jobs:
   fmt-clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -30,7 +36,7 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.88
       - run: cargo +1.88 check --all-targets
       - run: cargo +1.88 check --no-default-features --all-targets
@@ -42,7 +48,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       # No model weights and no audio exist in this repository, so the default
       # feature set is exercised without any inference: the weight-requiring arms
@@ -58,6 +64,6 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: [self-hosted, macOS, ARM64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo check --no-default-features --features mlx

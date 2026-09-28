@@ -80,7 +80,12 @@ for that first release rather than pointing at something that 404s.
   patterns live in a gitignored `scripts/audit-local.txt` that a public clone does
   not have. The script fails if that file is ever tracked, and each class of leak —
   path, private name, weight file, tracked local list — was planted and proved to
-  turn it red.
+  turn it red. The scan also covers **commit metadata** now, because that is the one
+  thing `git push` publishes which a file walk cannot see: the same patterns are run
+  over `git log`'s author and committer identities (eleven commits carrying a
+  personal address was what the first run found here), plus a non-fatal note when
+  commits sit reachable only from other refs, since a plain push does not send those
+  and `--all` does.
 - `scripts/demo.sh` + `docs/demo.md` — a listening example that costs the
   repository nothing it does not already refuse to carry: two recordings from
   Wikimedia Commons (an aria over an orchestra, and an a cappella control), named

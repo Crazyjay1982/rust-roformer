@@ -1,5 +1,11 @@
 # rust-roformer
 
+<!-- The crates.io, docs.rs and CI badges go here once the remote and the first
+     release exist; a badge that 404s is worse than a badge that is missing. -->
+![license](https://img.shields.io/badge/license-Apache--2.0-blue)
+![MSRV](https://img.shields.io/badge/MSRV-1.75-lightgrey)
+![weights included](https://img.shields.io/badge/weights%20included-none-green)
+
 Mel-Band RoFormer vocal/background separation in Rust.
 
 The model is not ours — the architecture is [ZFTurbo's](https://github.com/ZFTurbo/Music-Source-Separation-Training)
@@ -19,9 +25,18 @@ groups vs a mel filterbank), so **their weights are not interchangeable**: a
 `melband_*` checkpoint will not load into a BS-RoFormer implementation, whatever
 the name in the README says.
 
+```sh
+cargo add rust-roformer                              # crates.io release pending
+cargo add --git https://github.com/OWNER/rust-roformer   # until then
 ```
-cargo add rust-roformer            # or: git = "…"
-```
+
+**Use it if** your application embeds a separation step and runs somewhere memory
+is the binding constraint: a static-shape graph you must not OOM on, jobs long
+enough to be killed halfway through, and a build that has to work on Windows.
+
+**Skip it if** you want the best possible separation regardless of footprint (run
+the Python toolchain on a GPU), you need drums/bass/6-stem, or you wanted a command
+line to type into — there is a measurement harness, not a CLI.
 
 ## The one number that explains the design
 
@@ -137,19 +152,62 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-The same thing through the shipped harness, which also reports windows, wall
-clock and peak memory — and, with `--window`, does the load-time reshape below on
-the command line so you can measure the two windows against the same file:
+The same thing through the shipped harness — `bench` below is
+`cargo run --release --example bench --` — which is where the interesting part
+is: what the crate *refuses*, in its own words. This is a real session on a 16 GB
+Apple Silicon laptop against the unmodified stock export, output verbatim except
+that the model path has been shortened to its filename:
 
-```sh
-cargo run --release --example bench -- run --model melband_roformer_vocals.onnx \
-    --input song.wav --out bench-out
-cargo run --release --example bench -- run --model melband_roformer_vocals.onnx \
-    --input song.wav --out bench-out --window 176400
+```text
+$ bench synth --seconds 12 --out track.wav
+bench: wrote 529200 frames (12.0 s stereo 44.1 kHz) to track.wav
+
+$ bench run --model melband_roformer_vocals.onnx --input track.wav --out o
+bench: memory gate: this window needs ~19400 MB per forward, 14281 MB available
+(exit 1 — the stock 8 s window, refused before anything was allocated)
+
+$ bench run --model melband_roformer_vocals.onnx --input track.wav --out o --window 200000
+bench: model error: window 200000 is not a positive multiple of the hop 441
+(exit 1)
+
+$ bench run --model melband_roformer_vocals.onnx --input track.wav --out o --window 705600
+bench: model error: growing the window from 352800 to 705600 needs the iSTFT
+        normalisation table regenerated (baked capacity 352800 samples); only
+        shrinking is a shape edit
+(exit 1)
+
+$ bench run --model melband_roformer_vocals.onnx --input track.wav --out o --window 176400
+label   seconds  windows  wall_s  rtf    peak_mb  vocals_bytes  window_samples  resumed  resumed_from
+run#0   12.00    5        15.70   1.308    6730      2116844        176400        0          0
+(exit 0 — same file on disk, reshaped in memory at load time)
+
+$ bench resume-check --model melband_roformer_vocals.onnx --input track.wav \
+      --out r --window 176400
+label    seconds  windows  wall_s  rtf    peak_mb  vocals_bytes  window_samples  resumed  resumed_from
+control  12.00    5        15.48   1.290    7829      2116844        176400        0          0
+cut       7.50    3         9.53   1.271    7829      1323044        176400        0          0
+cut      12.00    3        10.12   0.843    7800      2116844        176400        2      330750
+vocals: identical (2116844 B)
+background: identical (2116844 B)
+resume-check: OK (resumed output byte-identical to uninterrupted)
+(exit 0)
 ```
 
-Every row of that TSV ends with the window read back off the live session, not
-echoed from the flag: a timing table should state the grid it timed.
+Three things that block are in there on purpose: the memory gate, the hop rule,
+and the shrink-only rule. (Two of the error strings are wrapped for line width;
+the numbers and wording are the program's.) And two things in the last block are
+worth reading before you trust any timing table: `window_samples` is read back off
+the live session rather than echoed from the flag, and `resumed_from` is the frame
+count the continuing pass started from — without that column, a "resume" that
+re-inferred the whole track would still have printed `identical`, because an
+identical result is not evidence that the checkpoint was used.
+
+What the numbers do *not* include: `peak_mb` is this process's lifetime
+high-water `phys_footprint` (it contains the 953 MB graph the session holds, so
+it is not a per-forward figure), and `wall_s` is not a speed claim — the same
+12 s/176400 configuration measured 14.0 s to 53.4 s across six sittings on this
+one machine, which is [why no wall clock is published as a
+result](docs/benchmarks.md).
 
 ## Getting a model
 

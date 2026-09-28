@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
 description = "Mel-Band RoFormer vocal separation in Rust — ONNX Runtime and MLX engines, engineered to stream arbitrarily long audio inside a 16 GB budget"
-# `repository` is added when the public remote exists — see CHANGELOG.
+repository = "https://github.com/Crazyjay1982/rust-roformer"
 keywords = ["audio", "source-separation", "vocal-remover", "mel-band-roformer", "onnx"]
 categories = ["multimedia::audio", "science"]
 readme = "README.md"

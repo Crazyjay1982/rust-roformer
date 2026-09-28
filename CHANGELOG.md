@@ -6,8 +6,11 @@ All notable changes to this crate. The format follows
 
 ## 0.1.0 — unreleased
 
-First extraction from a shipping desktop application. Not yet published: no
-remote exists, so `Cargo.toml` deliberately carries no `repository`.
+First extraction from a shipping desktop application. The public repository is
+`https://github.com/Crazyjay1982/rust-roformer`; `cargo install --git` against it
+works today, and `repository` is set in `Cargo.toml` accordingly. Crates.io is still
+unpublished, so `cargo install rust-roformer` and the crates.io/docs.rs badges wait
+for that first release rather than pointing at something that 404s.
 
 ### Added
 
@@ -113,6 +116,9 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
   the bare `DeepForge`, which an unrelated 755-star deep-learning IDE already
   occupies on GitHub. If a registered legal entity owns this code, that name
   should replace it here and nowhere else needs to change.
+- `Cargo.toml` gained `repository` and `homepage`; the README's install block
+  names the real git URL instead of an `OWNER` placeholder, so a reader can install
+  this today without waiting for a release.
 - `Cargo.toml` gained `homepage`, so the crates.io page carries a link to the
   project home; `repository` still waits for the remote. The crate docs and
   `rust-roformer --help` each state the home URL once, and a test asserts the

@@ -32,10 +32,11 @@ groups vs a mel filterbank), so **their weights are not interchangeable**: a
 the name in the README says.
 
 ```sh
+# crates.io has no release yet, so the git form below is the one that works today:
+cargo install --git https://github.com/Crazyjay1982/rust-roformer
+# once the first release is out, these two are the same thing:
 cargo install rust-roformer                              # the command line
 cargo add rust-roformer                                  # or the library
-# both pending: crates.io has no release yet, so until then —
-cargo install --git https://github.com/OWNER/rust-roformer
 ```
 
 **Use it if** your application embeds a separation step and runs somewhere memory

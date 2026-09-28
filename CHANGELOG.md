@@ -207,6 +207,25 @@ for that first release rather than pointing at something that 404s.
   made the proof worthless: the first mutation run "passed" only because
   `--exact mem::tests::…` was filtered by bare name and matched **zero** tests; the
   rerun that printed `running 1 test` is the one that counts.
+- **That fix was not enough, and the next CI run said so.** `d4c1ebc` removed the
+  cross-bracket assertion and Windows still failed the same job, because the
+  assertion left standing — `peak + 1 >= during` — compares the same two kinds of
+  values: a max over samples and one live reading, taken at different instants, of
+  a quantity that falls. Dropping one invalid comparison and keeping another was
+  editing the symptom. The arm is now `tests/peak_sampler.rs`, an integration test,
+  which cargo builds as its own binary and therefore its own process: inside it the
+  only thing that moves the process's memory is its own 96 MiB, so both comparisons
+  are sound and neither depends on thread luck. Same class as #189 in the
+  application tree — an arm reading a process-wide counter while a parallel suite
+  runs — and the second time that shape bit.
+- Recorded because it bounds what the new file is worth: **on macOS this arm cannot
+  fail.** Gutting the sampler's loop entirely leaves it green here, because
+  `phys_footprint` never falls and the single read taken on the way out of the
+  bracket still reports the high-water. Its teeth are on Windows and Linux, the two
+  platforms whose counters do fall, which is also the only place it has ever
+  reported a failure. The file says so in its own header rather than claiming a
+  portable guard, and the CI matrix — not a local green run — is the experiment that
+  validates it.
 - `docs/benchmarks.md` gains the Linux row its instrument table never had, and says
   out loud what the above implies for every number this file prints as
   `peak N MB`: on Windows and Linux it is a **lower bound** on the OS-recorded

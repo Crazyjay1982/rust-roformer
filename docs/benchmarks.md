@@ -19,9 +19,11 @@ One consequence of those two rows that is easy to miss: `peak_mb_while` returns 
 macOS the two coincide, because the footprint ledger stays charged — verified, the
 printed peak matched `/usr/bin/time -l` exactly. On Windows and Linux the value it
 samples genuinely falls between samples, so the printed peak is a **lower bound** on
-`PeakPagefileUsage` / `VmPeak`: a spike that lives shorter than the sampling interval
-is missed. A test now pins the relationship (`peak <= OS-reported lifetime peak`)
-rather than trusting the number to be the maximum.
+`PeakPagefileUsage` / `VmPeak`: a spike that lives shorter than the 20 ms sampling
+interval is missed. The relationship is pinned by `tests/peak_sampler.rs`, which
+runs as its own process for that reason, and which — said plainly — can only fail on
+Windows and Linux: on macOS even a gutted sampler leaves it green, because nothing
+this side of the bracket can make the ledger go down.
 
 Two calibration facts about the macOS instrument, measured rather than assumed:
 

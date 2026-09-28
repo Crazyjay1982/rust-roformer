@@ -24,6 +24,7 @@ homepage = "https://deepforgehub.com"
 # whose contents the gate exists to keep out of a public tree.
 include = [
     "src/**",
+    "tests/**",
     "tools/**",
     "examples/**",
     "docs/**",

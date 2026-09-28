@@ -1094,69 +1094,10 @@ mod tests {
         println!("[mem] {reads} reads during a 192 MB climb, {inversions} inversions");
     }
 
-    /// The harness the report's `peak_mb` column comes from has to actually
-    /// track a sustained climb, or every `peak_mb` in the crate is a plateau
-    /// reading. Synthetic on purpose: this is the one arm that needs no model.
-    ///
-    /// It compares against a reading taken *inside* the bracket rather than
-    /// demanding that the ledger grow, and that is not caution for its own
-    /// sake: an allocation can be served out of a region a sibling test freed
-    /// without the task's footprint moving at all (see
-    /// `footprint_tracks_a_known_allocation` on libmalloc keeping freed large
-    /// regions charged). Whether the ledger moves is that test's business;
-    /// this one is about the sampler not trailing what it was shown. Which is
-    /// also why nothing here compares across the start of the bracket: cargo
-    /// runs these arms as threads in one process, so a reading taken before it
-    /// is not a floor the bracket has to clear.
-    #[test]
-    fn peak_mb_while_tracks_a_sustained_climb() {
-        let Some(base) = snapshot().and_then(|s| s.held_mb()) else {
-            eprintln!("[mem] [SKIP] no held_mb on this platform");
-            return;
-        };
-        let mb = 96;
-        let ((len, during), peak) = peak_mb_while(|| {
-            let buf = touched_mb(mb);
-            // Hold it across many sample intervals, so the sampler cannot race
-            // past it, and read the same scalar from inside the bracket.
-            std::thread::sleep(std::time::Duration::from_millis(
-                (mb / 8) * SAMPLE_INTERVAL_MS,
-            ));
-            let during = snapshot().and_then(|s| s.held_mb()).unwrap_or(0);
-            std::hint::black_box(&buf);
-            (buf.len(), during)
-        });
-        assert_eq!(len, (mb as usize) * 1024 * 1024);
-        // MiB truncation of two independent reads is the only legitimate gap.
-        assert!(
-            peak + 1 >= during,
-            "sampled peak {peak} MB trailed a {mb} MB allocation held for \
-             {during} MB of sampling intervals (base {base} MB)"
-        );
-        // What this arm may demand of the sampler, and what it may not. It may
-        // demand that the sampler not trail a reading taken inside its own
-        // bracket, which is the line above. It may NOT demand `peak >= base`:
-        // `peak_mb_while` returns a max of *sampled current* values, and on
-        // Windows and Linux `held_mb` is a current quantity that really falls
-        // when memory is freed (commit charge / VmSize), so a sibling test
-        // releasing its buffers inside this bracket can push every sample below
-        // the reading taken before it. macOS hides that — its footprint ledger
-        // stays charged — which is exactly why this arm passed here and failed on
-        // a Windows runner. The floor that *is* valid under concurrency is the
-        // other direction: no sample can exceed the OS's own lifetime high-water.
-        let os_peak = snapshot().and_then(|s| s.proc_peak_commit_mb.or(s.proc_peak_rss_mb));
-        assert!(
-            os_peak.is_none_or(|p| peak <= p),
-            "sampled peak {peak} MB exceeds the OS-reported lifetime peak \
-             {os_peak:?} MB"
-        );
-        if during < base + mb - 8 {
-            // Worth printing, not failing: the allocator answered this request
-            // from pages the task already held.
-            eprintln!("[mem] note: {mb} MB cost no footprint (base {base}, inside {during})");
-        }
-        println!("[mem] peak_mb_while: base {base} MB, inside {during} MB, peak {peak} MB");
-    }
+    // The sampler-vs-climb arm lives in `tests/peak_sampler.rs` now, not here: it
+    // reads process-wide counters, and cargo runs these arms as threads in one
+    // process, so a sibling arm moving memory changes what the comparisons mean.
+    // Windows said so first.
 
     /// `log_point` sits inside window loops, so its cost has to be one
     /// formatting call and its failure mode has to be nothing at all.

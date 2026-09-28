@@ -8,3 +8,4 @@ Cargo.lock
 bench-out/
 __pycache__/
 *.pyc
+scripts/audit-local.txt

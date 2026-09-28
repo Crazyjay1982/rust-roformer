@@ -10,7 +10,24 @@ keywords = ["audio", "source-separation", "vocal-remover", "mel-band-roformer", 
 categories = ["multimedia::audio", "science"]
 readme = "README.md"
 # No model weights, no sample audio: see NOTICE and docs/LICENSES.md.
-include = ["src/**", "tools/**", "examples/**", "docs/**", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"]
+#
+# The scripts are named one by one rather than as `scripts/**`, because the
+# publication gate keeps its private pattern list in `scripts/audit-local.txt`
+# and `include` outranks `.gitignore` here: a wildcard would ship the very file
+# whose contents the gate exists to keep out of a public tree.
+include = [
+    "src/**",
+    "tools/**",
+    "examples/**",
+    "docs/**",
+    "scripts/audit_public.sh",
+    "scripts/bench_pair.sh",
+    "scripts/pair_summary.awk",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG.md",
+]
 
 [features]
 default = ["onnx", "ort-download-binaries"]

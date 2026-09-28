@@ -58,7 +58,14 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
   inside the position term or the scatter; `--window-a/--window-b` let one file be
   measured at two windows.
 - `scripts/audit_public.sh` — refuses to let machine paths, account-looking
-  strings, credentials or model/audio binaries into the tree.
+  strings, credentials or model/audio binaries into the tree. Its own banned list
+  is split in two, because a gate that is published cannot carry the identifiers
+  it guards: generic shapes (home directories, AWS key patterns, private-key
+  headers, email domains, URL credentials) live in the script, the naming-specific
+  patterns live in a gitignored `scripts/audit-local.txt` that a public clone does
+  not have. The script fails if that file is ever tracked, and each class of leak —
+  path, private name, weight file, tracked local list — was planted and proved to
+  turn it red.
 - Documentation with the claims checked rather than phrased: `docs/benchmarks.md`
   gives every number its machine, its sampling point and its failure mode;
   `docs/LICENSES.md` states what the upstream MIT tags do and do not answer; and

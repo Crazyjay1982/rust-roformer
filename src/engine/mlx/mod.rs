@@ -2,7 +2,7 @@
 //!
 //! A from-scratch Rust implementation of the architecture: its own STFT, its own
 //! mel-band split, alternating time/frequency transformer blocks, its own mask
-//! estimator. There is no exported graph being executed here — which is the point,
+//! estimator. There is no exported graph being executed here, which is the point,
 //! and the reason this arm runs the checkpoint's native window (8 s, 352 800
 //! samples at 44.1 kHz) with nothing cut or re-exported. The I/O path around it is
 //! the other half of the story: one window resident, both stems streamed to disk,
@@ -17,7 +17,7 @@
 //!
 //! The shipped ONNX export computes its STFT as a convolution against cos/sin
 //! kernels. In float32 that accumulates differently, and in quiet high-frequency
-//! bands the difference is not noise — it is amplified by the per-band L2Norm and
+//! bands the difference is not noise: it is amplified by the per-band L2Norm and
 //! then cascaded through the transformer stack. Arbitrating the two against a
 //! float64 FFT showed this FFT path matching PyTorch at correlation 0.9999997 while
 //! the exported graph deviated from the model it came from (correlation ≈ 0.70). So
@@ -29,11 +29,11 @@
 //!
 //! The gate that runs that comparison is
 //! [`one_window_matches_the_torch_fft_reference`](separate::MlxEngine) in
-//! `separate.rs`. It needs three things this repository does not carry — the weight
-//! file, a real recording, and a reference dump — so it reads them from
+//! `separate.rs`. It needs three things this repository does not carry (the weight
+//! file, a real recording, and a reference dump), so it reads them from
 //! `RR_MLX_WEIGHTS`, `RR_TEST_WAV` and `RR_TORCH_REF` and prints `[SKIP]` when any
-//! is unset. The arms that need only weights — streaming equivalence, and
-//! resume-after-a-kill bit identity — are gated the same way and additionally
+//! is unset. The arms that need only weights (streaming equivalence, and
+//! resume-after-a-kill bit identity) are gated the same way and additionally
 //! `#[ignore]`d, because mapping the file costs ~1 GB of resident memory and
 //! several minutes of forwards; `cargo test --features mlx --lib -- --ignored
 //! --test-threads=1` is what runs them.
@@ -44,7 +44,7 @@
 //! are in this module; an asterisk means the convention is only documented, because
 //! nothing short of a forward against the trained model can see it.
 //!
-//! * L2Norm is `x / max(||x||, 1e-12) * sqrt(dim) * weight` — **not** a
+//! * L2Norm is `x / max(||x||, 1e-12) * sqrt(dim) * weight`, **not** a
 //!   root-mean-square norm and not a plain "divide by the norm". The second drops
 //!   the `sqrt(dim)`, which rescales every activation by `1/sqrt(384)`; the first
 //!   moves where `eps` applies, which differs by six orders of magnitude on a row of
@@ -65,7 +65,7 @@
 //!   **no** model-level final norm: the reference implementation bypassed it and the
 //!   exported graph has none either, so adding one here would be inventing a layer.
 //!   `weight_file_keys_are_exactly_the_ones_the_loader_expects`, `key_naming_is_exact`.
-//! * The mask estimator MLP has `depth + 1` Linears — torch semantics — i.e. 384 →
+//! * The mask estimator MLP has `depth + 1` Linears (torch semantics) i.e. 384 →
 //!   1536 → 1536 → `2 · dim_in` with Tanh *between* them and a GLU folding the last
 //!   pair of halves. `mask_mlp_has_depth_plus_one_linears_and_a_glu`,
 //!   `mask_mlp_layer_indices_are_the_even_slots`.
@@ -88,10 +88,10 @@
 //! Read this before trying `--features mlx`. Measured on the machine this port was
 //! written on, against the `mlx-rs` 0.25 dependency the manifest declares:
 //!
-//! * `cargo check --no-default-features` and `cargo test --no-default-features` —
+//! * `cargo check --no-default-features` and `cargo test --no-default-features`:
 //!   the default, portable build. This module is not compiled, and neither is its
 //!   test list. Green, and that is the state a clean clone starts in.
-//! * `cargo check --no-default-features --features mlx` — **fails**, and it fails
+//! * `cargo check --no-default-features --features mlx` **fails**, and it fails
 //!   before any of this crate's code is reached: `mlx-rs` depends on `mlx-sys`, whose
 //!   build script runs CMake over the C API and whose `CMakeLists.txt` fetches the
 //!   MLX C++ library from source (an upstream `FetchContent` of the MLX repository at
@@ -106,7 +106,7 @@
 //!   MLX.**
 //! * What a user has to install, in short: macOS on Apple Silicon, CMake, a clang
 //!   that can target Metal, and either (a) let the build fetch and compile MLX, or
-//!   (b) an existing MLX install — the dylib and its headers — with the binding crate
+//!   (b) an existing MLX install (the dylib and its headers) with the binding crate
 //!   configured to link it. Route (b) is what the application this was ported from
 //!   does, and it is a vendored arrangement that cannot be expressed from inside a
 //!   published crate without changing its manifest, which is outside what this module
@@ -114,7 +114,7 @@
 //!
 //! What *was* verified, and how: this module was type-checked, and every test in it
 //! run, in a scratch copy of the crate whose manifest pointed `mlx-sys` at an MLX
-//! install that already existed on the machine — the harness is not something this
+//! install that already existed on the machine: the harness is not something this
 //! repository provides, and its results are reported beside the default build rather
 //! than folded into it. The feature is never quietly disabled to make a build look
 //! green: with `--features mlx` on an unprovisioned machine the command fails in the
@@ -122,12 +122,12 @@
 //!
 //! ## Module map
 //!
-//! * [`model`] — the graph: band split, alternating transformer, mask estimator, and
+//! * [`model`] is the graph: band split, alternating transformer, mask estimator, and
 //!   the pure layout/band arithmetic the forward is built from.
-//! * [`stft`] — framing, periodic Hann, `rfft` / `irfft`, host overlap-add.
-//! * [`weights`] — the 672-tensor `.safetensors` contract: key naming, the
+//! * [`stft`]: framing, periodic Hann, `rfft` / `irfft`, host overlap-add.
+//! * [`weights`] is the 672-tensor `.safetensors` contract: key naming, the
 //!   `[out, in] → [in, out]` transpose, shape checks.
-//! * [`separate`] — [`MlxEngine`], the window loop, crossfade, checkpoints, resume.
+//! * [`separate`] is [`MlxEngine`], the window loop, crossfade, checkpoints, resume.
 
 pub mod model;
 pub mod separate;
@@ -142,7 +142,7 @@ pub use separate::{resolve_overlap, resolve_window, MlxEngine, OVERLAP, WIN};
 /// computed, so the host can read it.
 ///
 /// MLX ops may return arrays whose buffer layout differs from their logical
-/// shape — `rfft`/`irfft` on a non-last axis keep the FFT kernel's transposed
+/// shape: `rfft`/`irfft` on a non-last axis keep the FFT kernel's transposed
 /// layout, for one. Device-side ops handle strides transparently, but a
 /// host-side `as_slice` reads raw memory in C-order and silently misinterprets a
 /// strided buffer. Call this (and use the returned array) before any host read.

@@ -33,14 +33,14 @@
 //! A `.part` pair is the output of one specific run. Continuing it from a
 //! different run splices two separations into one stem, which is worse than the
 //! restart it costs, because it is silent. So [`StemJob`] records the run's
-//! identity — input bytes and mtime, model bytes and mtime, the window geometry,
-//! the chunk count, the track length — and [`StemWriter::open_or_resume`] checks
+//! identity (input bytes and mtime, model bytes and mtime, the window geometry,
+//! the chunk count, the track length), and [`StemWriter::open_or_resume`] checks
 //! the fields one at a time. Every reason to start over (no sidecar, an
 //! unparseable one, a mismatch, a pair whose headers disagree with its size) is
 //! logged and turned into a fresh start; **none of them is an error**. A
 //! checkpoint you cannot trust must never fail the step.
 //!
-//! No failure discards staging — cancellation included. Every way a run can end
+//! No failure discards staging, cancellation included. Every way a run can end
 //! early (a user pressing stop, or, on a 16 GB laptop, the usual allocation
 //! refusal) leaves the pair and its sidecar where they are, which is the entire
 //! point of checkpointing: the next call picks up at the last window that finished
@@ -190,7 +190,7 @@ impl WavSource {
         })
     }
 
-    /// Total frames at the normalised rate — the `total_len` a chunk schedule is
+    /// Total frames at the normalised rate: the `total_len` a chunk schedule is
     /// built from.
     pub fn frames(&self) -> usize {
         self.target_frames
@@ -205,7 +205,7 @@ impl WavSource {
     /// `dst` (shape `[2, len]`).
     ///
     /// Random access: this seeks, so callers may ask for overlapping or
-    /// out-of-order windows — the crossfade grid asks for both. Asking past the
+    /// out-of-order windows: the crossfade grid asks for both. Asking past the
     /// end is an error rather than a clamp, because a schedule bug must not
     /// silently shorten a stem.
     pub fn read(&mut self, out_start: usize, dst: &mut ArrayViewMut2<'_, f32>) -> Result<()> {
@@ -370,7 +370,7 @@ where
     Ok(())
 }
 
-/// Source frame index that output frame `i` interpolates from — the loader's
+/// Source frame index that output frame `i` interpolates from, the loader's
 /// expression, kept in the same evaluation order.
 fn src_index(i: usize, orig: usize, target: usize) -> usize {
     let pos = i as f64 * (orig.saturating_sub(1)) as f64 / (target.saturating_sub(1)).max(1) as f64;
@@ -440,8 +440,8 @@ pub fn job_path(vocals_output: &Path) -> PathBuf {
 /// Remove a run's whole checkpoint: both `.part` files and the sidecar that binds
 /// them.
 ///
-/// No engine calls this. Every way a run can end early — cancellation as much as
-/// an allocation refusal — leaves the pair for the next call, because discarding
+/// No engine calls this. Every way a run can end early (cancellation as much as
+/// an allocation refusal) leaves the pair for the next call, because discarding
 /// is the one act here a caller cannot undo. This is how a caller says it meant
 /// "I am not coming back to this one".
 pub fn discard_staging(vocals_output: &Path, background_output: &Path) {
@@ -475,7 +475,7 @@ const BYTES_PER_FRAME: u64 = 4;
 /// without it: the not-yet-finalized region an engine keeps between windows would
 /// grow past one window, and a sample could then be touched by three or more
 /// chunks, so the fade weights of a resumed run would not reproduce the ones an
-/// uninterrupted run applied — which is precisely the equality a resume is bought
+/// uninterrupted run applied, which is precisely the equality a resume is bought
 /// for. It is asserted rather than returned as an error because it is a property
 /// of the caller's constants, checked in debug builds and in tests.
 pub fn chunk_starts(total_len: usize, win: usize, overlap: usize) -> Vec<usize> {
@@ -512,8 +512,8 @@ pub fn reaches_past(m: usize, starts: &[usize], total_len: usize, win: usize, ke
 /// Where a resumed run picks up.
 ///
 /// `first` is the lowest chunk whose flush output reaches past what is already on
-/// disk. The chunks in `prime_from..first` have to be inferred *again* — not
-/// flushed, only merged — because the hop is shorter than the window, so the
+/// disk. The chunks in `prime_from..first` have to be inferred *again*, not
+/// flushed, only merged, because the hop is shorter than the window, so the
 /// samples after the seam are a crossfade and the earlier contributions live only
 /// in those chunks' fade-outs.
 ///
@@ -615,7 +615,7 @@ fn wav_header(data_bytes: u32) -> [u8; STEM_HEADER_BYTES as usize] {
 }
 
 /// Bump when the checkpoint on disk stops meaning what this build thinks it
-/// means — a changed window grid, a different crossfade, a new frame layout.
+/// means: a changed window grid, a different crossfade, a new frame layout.
 ///
 /// The sidecar's [`StemJob::format`] field is compared first, so a stale pair from
 /// an older build of *this crate* is recognised as one.
@@ -634,7 +634,7 @@ pub const STEM_JOB_FORMAT: u32 = 1;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StemJob {
     pub format: u32,
-    /// Frames of the normalised mix — the length the schedule was built from.
+    /// Frames of the normalised mix: the length the schedule was built from.
     pub total_frames: u64,
     pub n_chunks: u64,
     /// The engine's window geometry, so a changed grid invalidates the pair.
@@ -852,7 +852,7 @@ pub fn file_stamp(path: &Path) -> (u64, u64) {
 /// The pair is also a *checkpoint*: [`checkpoint`](Self::checkpoint) rewrites each
 /// header in place at a chunk boundary, so at all times the `.part` files are
 /// complete, playable WAVs containing exactly the samples the engine has
-/// finalized — which is what lets [`open_or_resume`](Self::open_or_resume) append
+/// finalized, which is what lets [`open_or_resume`](Self::open_or_resume) append
 /// to them instead of throwing an hour of inference away.
 pub struct StemWriter {
     tmp_v: PathBuf,
@@ -881,7 +881,7 @@ impl StemWriter {
     /// 0 exactly when nothing was resumed.
     ///
     /// Every reason to start over goes to the log rather than to the caller: a
-    /// checkpoint we cannot trust must never fail the step, it only costs the work
+    /// checkpoint we cannot trust must not fail the step: it only costs the work
     /// already done.
     pub fn open_or_resume(
         vocals_output: &Path,
@@ -994,7 +994,7 @@ impl StemWriter {
             }
             w.flush().map_err(|e| Error::io_at(path, e))?;
             // A file opens at offset 0 and `write_frame` appends blindly, so the
-            // append point has to be placed by hand — otherwise a resumed pair gets
+            // append point has to be placed by hand; otherwise a resumed pair gets
             // its own header overwritten from byte 0.
             w.seek(io::SeekFrom::Start(STEM_HEADER_BYTES + data_bytes))
                 .map_err(|e| Error::io_at(path, e))?;
@@ -1088,8 +1088,8 @@ impl StemWriter {
         Ok(())
     }
 
-    /// Flush, then rename into place. Background goes first so `vocals.wav` — the
-    /// file a caller gates on — only appears once both stems are complete. If the
+    /// Flush, then rename into place. Background goes first so `vocals.wav` (the
+    /// file a caller gates on) only appears once both stems are complete. If the
     /// second rename fails, the first is undone: a track with one stem published
     /// and one not is worse than a track with none.
     pub fn finish(mut self) -> Result<PathBuf> {
@@ -1123,7 +1123,7 @@ impl StemWriter {
 /// Make the pair self-describing on the way out.
 ///
 /// [`checkpoint`](StemWriter::checkpoint) is a method an engine calls at a chunk
-/// boundary; this is the same guarantee for the paths that do not reach one — an
+/// boundary; this is the same guarantee for the paths that do not reach one: an
 /// early `?`, a panic in the loop, a `cleanup`-less error return. Without it, the
 /// pair still *resumes* correctly (the header lags the payload and the resume takes
 /// the smaller figure), but the files are not playable up to where the work
@@ -1202,7 +1202,7 @@ mod tests {
     /// mono duplication, >2-channel folding, and tracks long enough that a single
     /// window crosses `SPAN_FRAMES` (which a 4 s window at 44.1 kHz always does).
     ///
-    /// Written and removed inside `chunk_reads_match_full_decode` — one owner, so
+    /// Written and removed inside `chunk_reads_match_full_decode`: one owner, so
     /// no test can read a file another is still writing. That hazard is real and
     /// pinned separately by `open_before_finalize_reads_zero_samples`: `hound` only
     /// patches the RIFF data length in `finalize()`, so a WAV opened mid-write
@@ -1350,7 +1350,7 @@ mod tests {
         Ok(audio)
     }
 
-    /// The point of the module: windowed reads must return exactly what the
+    /// What this module has to guarantee: windowed reads return exactly what the
     /// full-buffer loader returned, sample for sample.
     #[test]
     fn chunk_reads_match_full_decode() {
@@ -1363,8 +1363,8 @@ mod tests {
             assert_eq!(src.frames(), full.ncols(), "{tag}: frame count disagrees");
             let total = src.frames();
 
-            // Probes: a normal engine window at many offsets — overlapping and
-            // forward-jumping, the shape a crossfade grid asks for — plus windows
+            // Probes: a normal engine window at many offsets (overlapping and
+            // forward-jumping, the shape a crossfade grid asks for), plus windows
             // wider than `SPAN_FRAMES`, anchored at every point where the span loop
             // changes over, because that is where a chunked decode can go wrong.
             let short = 1024usize;
@@ -1432,8 +1432,8 @@ mod tests {
     /// Widening over the loader this mirrors, which accepted 16-bit only: a DAW or
     /// a video extractor hands over 24-bit or 32-bit input as often as not, and the
     /// fold rule is the same one the 16-bit path uses. The expectation here is
-    /// computed from what was written — the quantised integer the file stores,
-    /// divided by that depth's own full scale in the same order the reader does it —
+    /// computed from what was written (the quantised integer the file stores,
+    /// divided by that depth's own full scale in the same order the reader does it)
     /// so the comparison is exact rather than to a tolerance.
     #[test]
     fn other_sample_widths_fold_the_same_way() {
@@ -1506,7 +1506,7 @@ mod tests {
     }
 
     /// A job record for the checkpoint tests. The geometry fields are arbitrary on
-    /// purpose — nothing here runs inference; only their *equality* matters.
+    /// purpose: nothing here runs inference; only their *equality* matters.
     fn job_for(total_frames: u64) -> StemJob {
         StemJob {
             format: STEM_JOB_FORMAT,
@@ -1610,7 +1610,7 @@ mod tests {
     }
 
     /// The `.part` pair is a playable WAV in the middle of a run, not only after
-    /// `finish` — that is what lets a killed run keep its work, and it is why the
+    /// `finish`, that is what lets a killed run keep its work, and it is why the
     /// staging file is not a headerless blob.
     #[test]
     fn checkpoint_leaves_a_readable_pair() {
@@ -1644,8 +1644,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// A writer that is dropped without an explicit checkpoint — an engine that
-    /// bails out between windows — still leaves the pair self-describing.
+    /// A writer that is dropped without an explicit checkpoint (an engine that
+    /// bails out between windows) still leaves the pair self-describing.
     #[test]
     fn dropping_the_writer_leaves_the_pair_readable() {
         let dir = test_dir("drop");
@@ -1715,7 +1715,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// A checkpoint we cannot trust must never fail the step: `open_or_resume` with
+    /// An untrustworthy checkpoint must not fail the step: `open_or_resume` with
     /// a different run's record on disk starts over, silently and successfully, and
     /// the fresh pair holds none of the stale prefix.
     #[test]
@@ -1822,7 +1822,7 @@ mod tests {
         write_checkpointed(&v, &b, &small, 60);
         assert_eq!(StemWriter::resume_frames(&v, &b, &small).unwrap(), 50);
 
-        // Nothing usable is not an error: it is a fresh start, reported.
+        // Nothing usable is a fresh start, reported as such, not an error.
         let (v2, b2) = (dir.join("empty_v.wav"), dir.join("empty_b.wav"));
         let mut w = StemWriter::open_or_resume(&v2, &b2, &job).unwrap();
         w.checkpoint().unwrap();

@@ -8,8 +8,8 @@
 //! ## Key naming
 //!
 //! The keys are what the export's own module paths translate to. They are built
-//! here by the [`*_key`] functions and nowhere else, so the whole naming scheme —
-//! and its coverage of the file — is checkable without a weight file on disk:
+//! here by the [`*_key`] functions and nowhere else, so the whole naming scheme
+//! and its coverage of the file is checkable without a weight file on disk:
 //! [`expected_keys`] enumerates all 672 names and [`apply_weights`] refuses any
 //! key in the file that it does not recognise.
 //!
@@ -18,7 +18,7 @@
 //! | `band_split.to_features_{b}.norm.weight` / `.linear.weight` / `.linear.bias` | 180 |
 //! | `layers_{i}.{time,freq}_transformer.layers_0.attn.{norm.weight, to_qkv.weight, to_gates.weight, to_gates.bias, to_out.layers.0.weight}` | 60 |
 //! | `layers_{i}.{time,freq}_transformer.layers_0.ff.net.layers.{0,1,4}.{weight,bias}` | 60 |
-//! | `layers_{i}.{time,freq}_transformer.norm.weight` — the block's output L2Norm | 12 |
+//! | `layers_{i}.{time,freq}_transformer.norm.weight`: the block's output L2Norm | 12 |
 //! | `mask_estimators_0.to_freqs_{b}.layers.{0,2,4}.{weight,bias}` | 360 |
 //!
 //! The `layers_{i}` / `to_features_{b}` spelling (underscore before the index) is
@@ -27,8 +27,8 @@
 //!
 //! ## Transpose convention
 //!
-//! Linear weights are stored `[out, in]` in the file — the `nn.Linear` layout the
-//! state dict carries — and are transposed to `[in, out]` here, so every Linear
+//! Linear weights are stored `[out, in]` in the file (the `nn.Linear` layout the
+//! state dict carries) and are transposed to `[in, out]` here, so every Linear
 //! in `model.rs` is a plain `matmul(x, w) + b`. Only rank-2 tensors are
 //! transposed: L2Norm weights and biases are rank-1 and mean what they say.
 //!
@@ -58,7 +58,7 @@ pub const EXPECTED_TENSOR_COUNT: usize = 60 * 3 + 60 + 60 + 12 + 60 * MASK_MLP_L
 
 // ─────────────────────── key naming, in one place ───────────────────────
 
-/// `band_split.to_features_{b}` — the module one band's split lives in.
+/// `band_split.to_features_{b}`: the module one band's split lives in.
 pub fn band_split_prefix(b: usize) -> String {
     format!("band_split.to_features_{b}")
 }
@@ -103,7 +103,7 @@ pub fn attn_out_weight_key(i: usize, axis: Axis) -> String {
 }
 
 /// Feed-forward member index: the L2Norm sits at 0, then the two Linears at 1
-/// and 4 — the export numbers every module in the `Sequential`, including the
+/// and 4: the export numbers every module in the `Sequential`, including the
 /// activations, which is why the second Linear is 4 and not 2.
 pub fn ff_norm_key(i: usize, axis: Axis) -> String {
     format!("{}.ff.net.layers.0.weight", block_prefix(i, axis))
@@ -124,7 +124,7 @@ pub fn block_out_norm_key(i: usize, axis: Axis) -> String {
     format!("layers_{i}.{}.norm.weight", axis.key_part())
 }
 
-/// `mask_estimators_0.to_freqs_{b}` — the module one band's estimator lives in.
+/// `mask_estimators_0.to_freqs_{b}`: the module one band's estimator lives in.
 pub fn mask_estimator_prefix(b: usize) -> String {
     format!("mask_estimators_0.to_freqs_{b}")
 }
@@ -186,8 +186,8 @@ pub fn expected_keys() -> Vec<String> {
 ///
 /// Derived from the architecture, so [`apply_weights`] and anyone checking a
 /// weight file before loading it cannot disagree about what the file must hold.
-/// A host that wants to inspect a checkpoint without mapping it — to see whether
-/// it is this model at all — can walk [`expected_keys`] and compare.
+/// A host that wants to inspect a checkpoint without mapping it (to see whether
+/// it is this model at all) can walk [`expected_keys`] and compare.
 pub fn expected_shape(key: &str) -> Option<Vec<i32>> {
     let dim_in = |b: usize| band_dim_in(band_layout().num_freqs_per_band[b]) as i32;
     // Band split.
@@ -565,7 +565,7 @@ mod tests {
     }
 
     /// The key list has no duplicates and covers the count, and every key has a
-    /// derived shape — an unmapped key would load as "missing" against a real
+    /// derived shape: an unmapped key would load as "missing" against a real
     /// file and is invisible until then.
     #[test]
     fn every_expected_key_has_exactly_one_derived_shape() {

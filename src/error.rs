@@ -33,7 +33,7 @@ pub enum Error {
     Output { detail: String },
     /// The window this model asks for does not fit the memory budget.
     /// `need_mb` is a measured/estimated per-forward figure, not a guess about
-    /// the whole track — see `mem` for how it is derived.
+    /// the whole track; see `mem` for how it is derived.
     Memory { need_mb: u64, avail_mb: Option<u64> },
     /// The caller's [`crate::config::CancelFlag`] was set.
     Cancelled,
@@ -56,8 +56,8 @@ impl Error {
     /// The distinction exists because the wrong mapping is expensive: an
     /// under-sized laptop asked for an 8-second window will fail identically
     /// after any number of re-downloads. Our own [`Error::Memory`] answers by
-    /// variant — a `Display` string match would rot the moment the wording
-    /// changes — while text from a runtime we do not control (ONNX Runtime, MLX)
+    /// variant (a `Display` string match would rot the moment the wording
+    /// changes), while text from a runtime we do not control (ONNX Runtime, MLX)
     /// is classified by [`crate::mem::is_allocation_failure`].
     pub fn looks_like_allocation_failure(&self) -> bool {
         match self {

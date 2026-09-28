@@ -9,7 +9,7 @@
 #
 # The gate is itself published, so it cannot carry the identifiers it guards: a
 # banned-string list that names an account prefix discloses that account prefix.
-# The patterns therefore split in two. What follows is the generic part — shapes
+# The patterns therefore split in two. What follows is the generic part: shapes
 # and paths that are public knowledge about Rust projects. The personal and
 # project-specific part lives in `scripts/audit-local.txt`, which is gitignored,
 # one regex per line, `#` for comments. A clone without that file still runs the
@@ -73,10 +73,10 @@ if [ -n "$weights" ]; then
 fi
 
 # Second subject for the same pattern lists: `git push` publishes author and
-# committer identities as loudly as it publishes source lines, GitHub search
+# committer identities the same way it publishes source lines, GitHub search
 # indexes them, and a rewrite after the fact is visible in every fork that was
 # cloned in between. The file walk above cannot see any of that because it
-# excludes `.git` — which is the right call for weights and wrong for metadata.
+# excludes `.git`, which is the right call for weights and wrong for metadata.
 identities=$(git log --format='author %an <%ae>%ncommitter %cn <%ce>' HEAD 2>/dev/null)
 if [ -z "$identities" ]; then
   echo "audit: no commits reachable from HEAD — identity sweep skipped" >&2
@@ -88,8 +88,8 @@ else
       status=1
     fi
   done
-  # Commits that only other refs reach — a rewrite's backup branch, filter-branch's
-  # own refs/original — are not sent by a plain `git push`, so this is a note and not
+  # Commits that only other refs reach (a rewrite's backup branch, filter-branch's
+  # own refs/original) are not sent by a plain `git push`, so this is a note and not
   # a failure: failing here would block the push that deletes them. The count is
   # printed and the identities are not, because naming them here would put the exact
   # strings this gate exists to keep out of the transcript.
@@ -101,7 +101,7 @@ fi
 
 # A tracked file that only exists on this machine is the same leak in a different
 # shape: `git ls-files` is what a public remote would publish. And crates.io
-# publishes what `include` selects, which outranks .gitignore entirely — so the
+# publishes what `include` selects, which outranks .gitignore entirely, so the
 # packaging manifest gets checked too, not just the index.
 if [ -f "$LOCAL_LIST" ]; then
   if git ls-files --error-unmatch "$LOCAL_LIST" >/dev/null 2>&1; then

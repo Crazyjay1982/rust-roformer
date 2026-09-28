@@ -19,8 +19,8 @@
 //! gets [`resolve_window`]'s refusal, which names the figure it wants and points
 //! at the ONNX arm, where a rebuilt graph is the right answer.
 //!
-//! The overlap *is* a crossfade parameter rather than a model parameter — it
-//! changes where the seams are, not what the network sees — so
+//! The overlap *is* a crossfade parameter rather than a model parameter (it
+//! changes where the seams are, not what the network sees), so
 //! [`resolve_overlap`] honours a caller's value as long as it keeps the grid
 //! legal (`overlap ≤ win / 2`, the invariant [`chunk_starts`] asserts: otherwise
 //! a sample can be touched by three or more windows and a resumed run cannot
@@ -32,7 +32,7 @@
 //! sum), the window in hand and its output: about 13 MB of host buffers, which is
 //! the whole host-side footprint whatever the track length. The pre-streaming
 //! version of this path held the mix, both stems and the weight sum at full track
-//! length — ~4.4 GB of host memory per hour of audio — and shipped a measured
+//! length (~4.4 GB of host memory per hour of audio) and shipped a measured
 //! 3,405 MB host peak on a 45.8-minute track down to 72 MB, with the
 //! *device*-side figures unchanged value for value. Those are the shipped app's
 //! numbers, taken before this port. This crate does not re-measure them; every
@@ -58,14 +58,14 @@
 //! and the window geometry, so a re-exported input or a different checkpoint
 //! starts over instead of splicing two separations into one stem.
 //!
-//! Cancellation is observed between windows — never inside a forward, because the
+//! Cancellation is observed between windows, never inside a forward, because the
 //! runtime's own decode loop is not ours to interrupt. It keeps the staging, like
 //! every other failure does: [`SeparationEngine::separate`]'s contract is that the
 //! next call with the same paths continues from the last flushed window, and the
 //! caller who pressed stop is the one most likely to want that. Deleting a
 //! checkpoint is irreversible, so it stays the caller's explicit
 //! [`discard_staging`](crate::stream::discard_staging) rather than an engine
-//! policy — the production arm this was ported from *does* throw the pair away on
+//! policy: the production arm this was ported from *does* throw the pair away on
 //! stop, because in that product "stop" means "I am not coming back to this one";
 //! a library cannot know which of the two a caller meant.
 //!
@@ -112,7 +112,7 @@ pub const ENGINE_NAME: &str = "mlx";
 /// refused rather than honoured: this engine builds the architecture, so the
 /// window is the length the weights were trained at, and shortening it changes
 /// the time-axis attention rather than just the buffer size. That is a quality
-/// change that needs re-validation, not a constant to overwrite — and the ONNX
+/// change that needs re-validation, not a constant to overwrite, and the ONNX
 /// arm, which runs an exported graph, is where a reduced-window graph belongs.
 pub fn resolve_window(requested: Option<usize>) -> Result<usize> {
     match requested {
@@ -134,7 +134,7 @@ pub fn resolve_window(requested: Option<usize>) -> Result<usize> {
 /// Resolve a caller's overlap request.
 ///
 /// `None` gives the shipped 2.5 s. Any value is honoured while it keeps the grid
-/// legal — `overlap ≤ WIN / 2`, i.e. one hop still covers the fade region, so a
+/// legal: `overlap ≤ WIN / 2`, i.e. one hop still covers the fade region, so a
 /// sample is touched by at most two windows and a resumed run reproduces the
 /// weights of an uninterrupted one.
 pub fn resolve_overlap(requested: Option<usize>) -> Result<usize> {
@@ -164,7 +164,7 @@ pub fn linear_ramp(overlap: usize) -> Vec<f32> {
 ///
 /// The two ramps are the same ramp read in opposite directions, so where two
 /// windows meet their weights sum to exactly 1 and the weight normalisation in
-/// the flush step is a no-op there — it exists for the samples only one window
+/// the flush step is a no-op there; it exists for the samples only one window
 /// reaches.
 pub fn fade_weights(ramp: &[f32], is_first: bool, is_last: bool) -> Vec<f32> {
     let overlap = ramp.len();
@@ -199,7 +199,7 @@ pub const ATTENTION_SCORE_BYTES: usize = NUM_BANDS * HEADS * FRAMES * FRAMES * 4
 /// Additional memory one forward pass needs, in MiB: the analytic bound the
 /// pre-flight gate compares with [`mem::window_fits`].
 ///
-/// Summed from the graph's own shapes — the score matrix and its softmax copy,
+/// Summed from the graph's own shapes: the score matrix and its softmax copy,
 /// the q/k/v projection, the block activations and the host buffers this loop
 /// holds. It is *not* a measurement: the tensor library's allocator cache holds
 /// freed regions, so the device-side peak sits above this figure rather than at
@@ -231,7 +231,7 @@ impl MlxEngine {
     ///
     /// `weights` is a `.safetensors` file you produced with
     /// `tools/extract_onnx_weights.py` from the stock fp32 export. This crate has
-    /// no model registry and no default location for it — a host already knows
+    /// no model registry and no default location for it: a host already knows
     /// where it keeps its models, and guessing a path here would only turn a
     /// missing file into a confusing one.
     pub fn load(weights: &Path) -> Result<Self> {
@@ -273,7 +273,7 @@ impl MlxEngine {
         })?;
         let input = Array::from_slice(data, &[1, 2, samples as i32]);
 
-        // The graph reports failures by panicking on the runtime's error status —
+        // The graph reports failures by panicking on the runtime's error status:
         // that is what `expect` on every op means. Unwinding into `Error::Session`
         // keeps the two things a caller needs: its staging, and a message
         // `mem::is_allocation_failure` can classify as "smaller machine" rather
@@ -294,8 +294,8 @@ impl MlxEngine {
             },
         )?;
 
-        // MLX buffers are not always row-major — an FFT on a non-last axis in
-        // particular is not — and the host read below indexes raw memory in
+        // MLX buffers are not always row-major (an FFT on a non-last axis in
+        // particular is not), and the host read below indexes raw memory in
         // C-order, so flatten to a contiguous copy first.
         let out = super::ensure_contiguous(&out);
         let flat = out.as_slice::<f32>();
@@ -546,8 +546,8 @@ impl MlxEngine {
                 ),
             });
         }
-        // Publishes the `.part` pair, so `vocals.wav` — the file a caller's
-        // skip-if-exists check gates on — only appears once both stems are whole.
+        // Publishes the `.part` pair, so `vocals.wav` (the file a caller's
+        // skip-if-exists check gates on) only appears once both stems are whole.
         stems.finish()?;
         log::info!(
             "[mlx] done: {} + {} ({:.1} s audio, {} window(s) inferred, {} resumed)",
@@ -608,8 +608,8 @@ impl SeparationEngine for MlxEngine {
         // sidecar in place: the trait's contract is that the next call with the same
         // paths continues rather than starting at zero, and a user who hit "stop" is
         // the caller most likely to want that. Throwing a checkpoint away is the
-        // caller's own, reversible-until-asked act —
-        // [`discard_staging`](crate::stream::discard_staging) — not something this
+        // caller's own, reversible-until-asked act:
+        // [`discard_staging`](crate::stream::discard_staging), not something this
         // engine does on their behalf.
         report.map(|mut r| {
             r.wall_ms = t0.elapsed().as_millis();
@@ -619,7 +619,7 @@ impl SeparationEngine for MlxEngine {
 }
 
 // Window index after which the loop gives up as if the process had been killed,
-// checkpoint left in place — the only way to get a half-written track here without
+// checkpoint left in place: the only way to get a half-written track here without
 // actually exhausting memory. These are plain comments rather than doc comments
 // because `thread_local!` expands to a module, so a doc comment would not attach.
 #[cfg(test)]
@@ -666,7 +666,7 @@ mod tests {
         }
     }
 
-    /// The overlap is a crossfade parameter, so a caller may change it — but not
+    /// The overlap is a crossfade parameter, so a caller may change it, but not
     /// past the point where a sample gets three contributors, which is what makes
     /// a resumed stem differ from an uninterrupted one.
     #[test]
@@ -717,7 +717,7 @@ mod tests {
     }
 
     /// Crossfade weights: 0 → 1 in, 1 → 0 out, and where two windows meet their
-    /// weights sum to exactly one — which is what makes the flush step's
+    /// weights sum to exactly one, which is what makes the flush step's
     /// normalisation a no-op inside a seam.
     #[test]
     fn the_crossfade_weights_add_up_to_one() {
@@ -745,12 +745,12 @@ mod tests {
         // The seam itself. Window `i` covers `[s, s+WIN)` and window `i+1` covers
         // `[s+hop, s+hop+WIN)`, so they meet over `hop .. WIN` in window `i`'s
         // coordinates and over `0 .. overlap` in window `i+1`'s. At every position
-        // in there the two weights have to sum to exactly one — that is what makes
+        // in there the two weights have to sum to exactly one, that is what makes
         // the flush step's division by the weight sum a no-op across a seam, and
         // what a resumed run has to reproduce sample for sample.
         let hop = WIN - OVERLAP;
         // Any two interior windows carry the same weights, so one array serves for
-        // both sides of the seam — in window `i`'s coordinates and in window
+        // both sides of the seam: in window `i`'s coordinates and in window
         // `i+1`'s, which are offset by exactly `hop`.
         let weights = fade_weights(&ramp, false, false);
         for j in 0..OVERLAP {
@@ -817,7 +817,7 @@ mod tests {
 
     // ─────────────────── gated: weights and real audio ───────────────────
 
-    /// A path from an env var, or `[SKIP]` — the arms below need the weight file
+    /// A path from an env var, or `[SKIP]`: the arms below need the weight file
     /// and/or a real track, and neither ships with or is downloaded into this
     /// repository.
     fn fixture(var: &str) -> Option<PathBuf> {
@@ -951,7 +951,7 @@ mod tests {
 
     /// The acceptance bar: one native window of a real recording, against a
     /// PyTorch FFT reference. It is compared to PyTorch and *not* to the ONNX
-    /// graph's output on purpose — the export computes the STFT as a
+    /// graph's output on purpose: the export computes the STFT as a
     /// convolution, and its accumulated error in quiet high-frequency bands is
     /// amplified by the per-band L2Norm and cascaded through the stack, so the
     /// graph's own output is the thing under suspicion rather than the yardstick.
@@ -1129,7 +1129,7 @@ mod tests {
     }
 
     /// A run that dies after window K and is restarted must deliver exactly the
-    /// bytes a run that never died would have written — including the background
+    /// bytes a run that never died would have written, including the background
     /// stem, which is the residual and therefore the sensitive one. Two tracks:
     /// one landing exactly on the grid, one whose appended final window starts
     /// inside an earlier window's fade-out, so that seam has two contributors and
@@ -1186,7 +1186,7 @@ mod tests {
                 CRASH_AFTER.with(|c| c.set(usize::MAX));
                 assert!(err.to_string().contains("test crash"), "{tag} k={k}: {err}");
 
-                // A failure that is not cancellation keeps the checkpoint — that
+                // A failure that is not cancellation keeps the checkpoint, that
                 // is the whole point of checkpointing.
                 let finalized = if k + 1 < n { starts[k + 1] } else { len };
                 assert_eq!(
@@ -1249,7 +1249,7 @@ mod tests {
     }
 
     /// Cancellation between windows: the run stops, returns `Cancelled`, and keeps
-    /// the checkpoint the trait promises — and a later call that continues it
+    /// the checkpoint the trait promises, and a later call that continues it
     /// publishes the bytes an uninterrupted run would have.
     #[test]
     #[ignore = "maps the RoFormer MLX weight file (~1 GB)"]
@@ -1283,7 +1283,7 @@ mod tests {
         let mut e = MlxEngine::load(&weights).expect("load");
         let flag = CancelFlag::new();
         // The callback fires once per window before its forward, so this stops the
-        // run at the first boundary after a checkpoint has been written — the
+        // run at the first boundary after a checkpoint has been written: the
         // state a user hitting "stop" actually produces.
         let cb: crate::config::Progress = {
             let flag = flag.clone();
@@ -1363,7 +1363,7 @@ mod tests {
 
     /// The gate refuses *before* the first forward, so the refusal costs
     /// microseconds, names the figure it refused against, and creates nothing on
-    /// disk — the state a caller can act on ("smaller window / other engine")
+    /// disk: the state a caller can act on ("smaller window / other engine")
     /// without having lost an hour of work or left a `.part` pair behind.
     #[test]
     #[ignore = "maps the RoFormer MLX weight file (~1 GB)"]

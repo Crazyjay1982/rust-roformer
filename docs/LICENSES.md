@@ -1,11 +1,11 @@
 # Licences and provenance
 
 Read this before you redistribute anything. It is short, and the last section is
-the part people usually skip and later wish they had not.
+the part usually skipped.
 
 ## 1. The code in this repository
 
-Apache License 2.0 — see [`LICENSE`](../LICENSE), copyright 2026 DeepForgeHub
+Apache License 2.0; see [`LICENSE`](../LICENSE), copyright 2026 DeepForgeHub
 (`https://deepforgehub.com`). This covers `src/`,
 `tools/`, `examples/`, `docs/` and the tests. It does **not** cover model
 weights, and this repository ships none: no `.onnx`, no `.safetensors`, no
@@ -16,7 +16,7 @@ produce what you need from a checkpoint you downloaded yourself.
 
 The architecture, the checkpoint, and the ONNX export are three different
 distributions with three different rights-holders. What their authors declare,
-verified against the public APIs on 2026-09-27 rather than copied from a README:
+verified against the public APIs on 2026-09-27, not read off a README:
 
 | What | Where | Declared licence | Checked |
 | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ The export is a single file, which makes integrity checking unambiguous:
 `64a4f3bee48fbe7d971b23875adc924ed004c3533f49672592641dddc0f6f561`. If your copy
 is not that size and hash, you are running something else, and every number in
 `docs/benchmarks.md` stops applying to it. The copy this code was developed and
-measured against hashes to exactly that value — so "the reference model is the
+measured against hashes to exactly that value, so "the reference model is the
 stock upstream export, unmodified" is a checkable statement here, not a
 convenience claim.
 
@@ -44,7 +44,7 @@ a weight file carries the weight file's terms, not this repository's Apache-2.0.
 The `onnx` engine links ONNX Runtime through the `ort` crate; the `mlx` engine
 links Apple's MLX through `mlx-rs`. Each has its own licence terms, and the set of
 transitive crates changes over time, so do not trust a list written in a markdown
-file — regenerate it against the lockfile you actually built with:
+file: regenerate it against the lockfile you actually built with:
 
 ```sh
 cargo install cargo-license   # once
@@ -59,11 +59,11 @@ outputs are useful for separating recorded music is, by construction, a model th
 saw recorded music, and that is a question about the *weights* which no licence tag
 in the table above answers.
 
-So, stated plainly:
+So:
 
 * This repository makes no claim that training-data rights are cleared.
 * If you ship a product that runs these weights, the question is yours to answer
-  with your own counsel — not because anyone told you it is fine, and not because
+  with your own counsel, not because anyone told you it is fine, and not because
   a Hugging Face card field says `mit`.
 * What the code here does give you is reproducibility of the parts that are ours:
   the streaming I/O, the memory gate, and the arithmetic of the model
@@ -72,7 +72,7 @@ So, stated plainly:
 
 ## 5. The recordings the demo uses are not here either
 
-`scripts/demo.sh` names two files hosted on Wikimedia Commons — an aria with
+`scripts/demo.sh` names two files hosted on Wikimedia Commons: an aria with
 orchestra (offered by its uploader under GFDL / CC BY-SA 3.0 / CC BY 2.5, used
 under the attribution-only CC BY 2.5 option) and an a cappella track (CC BY 3.0
 for the recording, the 1881 lyrics public domain). Both are third-party
@@ -83,6 +83,6 @@ procedure, and distributes neither.
 That is the same rule as §2 applied to audio, for the same reason: an artefact
 carrying somebody else's rights belongs where the rights holder put it, not in a
 tree whose licence field says Apache-2.0. It also means the attribution those two
-licences ask for is not this repository's to give — `docs/demo.md` carries the
+licences ask for is not this repository's to give. `docs/demo.md` carries the
 credit lines so that whoever distributes a clip derived from them has something
 accurate to copy.

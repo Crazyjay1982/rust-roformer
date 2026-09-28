@@ -49,7 +49,7 @@ pub const N_FREQS: i32 = N_FFT / 2 + 1; // 1025
 /// Center reflect-pad applied on each side before framing.
 pub const CENTER_PAD: i32 = N_FFT / 2; // 1024
 
-/// Periodic Hann window of length `n` — matches
+/// Periodic Hann window of length `n`, matching
 /// `torch.hann_window(n, periodic = true)`, i.e. `0.5 - 0.5·cos(2πk/n)`.
 pub fn hann_window_n(n: i32) -> Array {
     let n_arr = Array::arange::<f32, f32>(None, n as f32, None).expect("hann: arange");
@@ -68,7 +68,7 @@ pub fn hann_window_n(n: i32) -> Array {
 /// result to [`Array::take_axis`].
 pub fn reflect_indices(len: i32, pad_left: i32, pad_right: i32) -> Vec<i32> {
     let mut idx = Vec::with_capacity((len + pad_left + pad_right) as usize);
-    // Left: sample 1, then 2, … up to `pad_left` — i.e. the pad reads the
+    // Left: sample 1, then 2, … up to `pad_left`, i.e. the pad reads the
     // signal backwards from one past the edge, so `x[0]` appears exactly once.
     for i in (1..=pad_left).rev() {
         idx.push(i);
@@ -279,7 +279,7 @@ mod tests {
         }
     }
 
-    /// The device path must pad with the same indices the pure rule produces —
+    /// The device path must pad with the same indices the pure rule produces,
     /// checked on the host by reading the padded array back.
     #[test]
     fn reflect_pad_last_matches_the_pure_indices() {
@@ -291,7 +291,7 @@ mod tests {
         );
     }
 
-    /// Hann, periodic — `torch.hann_window(n, periodic=True)`, the form the
+    /// Hann, periodic: `torch.hann_window(n, periodic=True)`, the form the
     /// checkpoint's STFT used. What that means concretely, and what a plot of the
     /// array would not tell you:
     ///
@@ -339,8 +339,8 @@ mod tests {
             );
         }
         // The peak is unique and exactly at n/2. A symmetric window of this length
-        // would have two equal samples either side of it, so the gap here — about
-        // 4.7e-6, far above the ~1e-7 rounding of the subtraction — is what says
+        // would have two equal samples either side of it, so the gap here (about
+        // 4.7e-6, far above the ~1e-7 rounding of the subtraction) is what says
         // the frame butt-joins without doubling an edge.
         assert!((s[n / 2] - 1.0).abs() < 1e-6, "w[n/2] = {}", s[n / 2]);
         assert!(
@@ -359,8 +359,8 @@ mod tests {
         assert!(sq > 500.0, "sum of squares {sq}");
     }
 
-    /// Round trip of a full native window: 801 frames, and the interior — away
-    /// from the reflect-padded edges, where the COLA sum is complete — must come
+    /// Round trip of a full native window: 801 frames, and the interior (away
+    /// from the reflect-padded edges, where the COLA sum is complete) must come
     /// back at float32 precision. This is the arm that would fail if the FFT were
     /// replaced by the export's convolution, so it is the arithmetic the whole
     /// module exists to keep.

@@ -12,7 +12,7 @@
 #                          --model-b melband_roformer_vocals_4s.onnx \
 #                          --input track.wav
 #
-# Or, to measure the in-memory reshape instead of a second file — the SAME model
+# Or, to measure the in-memory reshape instead of a second file: the SAME model
 # on both arms, one of them given a window:
 #
 #   ./scripts/bench_pair.sh --model-a melband_roformer_vocals.onnx \

@@ -96,7 +96,7 @@ esac
 # The window is part of the default output directory because the harness writes
 # one directory per label and clears it before starting: run the interesting
 # failure (`--window 352800`, which exits after deleting) and a following
-# successful run would otherwise find — and remove — the pair from the run that
+# successful run would otherwise find (and remove) the pair from the run that
 # just succeeded. Two invocations that asked for different graphs should not
 # share a directory.
 if [ -z "$out" ]; then

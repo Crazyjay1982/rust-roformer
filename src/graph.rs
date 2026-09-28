@@ -5,7 +5,7 @@
 //! A Mel-Band RoFormer export fixes its window length in *shape*, not in a
 //! setting: the value appears as a handful of `int64` `Constant` nodes and as the
 //! last dimension of the graph's input and output. ONNX Runtime has no knob for
-//! it. That left two options — ask every user to run an offline script over their
+//! it. That left two options: ask every user to run an offline script over their
 //! downloaded model, or apply the same edit to a buffer at load time and hand the
 //! bytes to `ort`'s `Session::builder().commit_from_memory(..)`. This module is the
 //! second one, so the stock export stays the file on disk and the window becomes
@@ -14,8 +14,8 @@
 //! # What is safe, and what is not
 //!
 //! * **Weights are never touched.** The edit rewrites `Constant` payloads and
-//!   tensor dimensions only. If a window value is found inside an *initializer* —
-//!   a weight — this module refuses outright, because at that point we would be
+//!   tensor dimensions only. If a window value is found inside an *initializer* (a
+//!   weight), this module refuses outright, because at that point we would be
 //!   editing the model's parameters and not its shape.
 //! * **Shrinking is exact.** `istft.window_sum_inv` is an overlap-add
 //!   normalisation table of length `capacity + n_fft`, and the graph slices it at
@@ -28,7 +28,7 @@
 //!   than erroring. [`patch_window`] refuses past `capacity`, and says so.
 //! * **Length matters.** A constant's payload is fixed-width little-endian, so
 //!   replacing its value cannot change the file's length. A `dim_value` is a
-//!   protobuf *varint*, and varints grow at 2^7, 2^14, 2^21 … — so a window
+//!   protobuf *varint*, and varints grow at 2^7, 2^14, 2^21 …, so a window
 //!   beyond 127 … 16,383 would need more bytes. Rewriting a varint in place with
 //!   a different byte length would corrupt everything after it, so a
 //!   non-length-neutral dimension is a refusal, not a re-serialisation.
@@ -36,9 +36,9 @@
 //! # What we do not claim
 //!
 //! The exported graph also carries cached shape-inference results
-//! (`value_info`). They describe the *old* window, and we leave them alone —
+//! (`value_info`). They describe the *old* window, and we leave them alone:
 //! deleting them changes the message length and would require re-serialising the
-//! whole model. Whether the runtime cares is measured, not assumed: see
+//! whole model. Whether the runtime accepts it was measured here: see
 //! `engine::onnx`'s module note, which records the observed behaviour of building
 //! a session from patched bytes.
 
@@ -49,7 +49,7 @@ use crate::error::{Error, Result};
 /// largest window that graph can serve.
 pub const N_FFT: usize = 2048;
 /// iSTFT hop, in samples. A window that is not a multiple of this cannot be
-/// tiled by the overlap-add grid, and the graph would not fail loudly — it would
+/// tiled by the overlap-add grid, and the graph would not fail loudly; it would
 /// produce a short output.
 pub const HOP: usize = 441;
 
@@ -65,7 +65,7 @@ const NODE_ATTRIBUTE: u64 = 5;
 // AttributeProto
 const ATTR_NAME: u64 = 1;
 const ATTR_INTS: u64 = 8;
-/// `AttributeProto.t` — the tensor payload of a `Constant`'s `value` attribute.
+/// `AttributeProto.t`: the tensor payload of a `Constant`'s `value` attribute.
 ///
 /// Field **5**. Field 14 is `tp` (a `TypeProto`, deprecated since opset 16), which
 /// was the number here before, and reading `tp` as a tensor is how every real
@@ -409,7 +409,7 @@ pub fn inspect(buf: &[u8]) -> Result<GraphReport> {
             FIELD_INITIALIZER => {
                 report.initializers += 1;
                 // The normalisation table is a FLOAT tensor, so this check runs
-                // before the int64 filter below — not after it.
+                // before the int64 filter below, not after it.
                 let name = tensor_name(buf, span)?;
                 if name.contains("window_sum_inv") {
                     report.capacity = table_capacity(buf, span)?;
@@ -641,7 +641,7 @@ fn varint_bytes(mut v: u64) -> Vec<u8> {
     }
 }
 
-/// The graph's own name, when it has one — used in logs so a user can tell which
+/// The graph's own name, when it has one; used in logs so a user can tell which
 /// file they are looking at.
 pub fn graph_name(buf: &[u8]) -> Option<String> {
     let mut model_fields = Vec::new();
@@ -844,8 +844,8 @@ mod tests {
             "a length-neutral patch must stay length-neutral"
         );
         // Six sites carry the window: four constants and two dimensions. The exact
-        // byte count is not asserted — an 8-byte little-endian word differs only in
-        // its low bytes — but every moved byte must belong to one of them.
+        // byte count is not asserted (an 8-byte little-endian word differs only in
+        // its low bytes), but every moved byte must belong to one of them.
         assert_eq!(r.sites.len(), 6, "{:?}", r.sites);
         assert!(
             changed > 0 && changed <= 6 * 8,
@@ -917,7 +917,7 @@ mod tests {
     fn a_dimension_that_would_need_more_bytes_defers_to_the_offline_tool() {
         // A dimension varint that would change width cannot be rewritten in place:
         // every offset after it shifts. 441 samples is hop-aligned and encodes in
-        // 2 bytes where 352_800 takes 3, so this is the case that must refuse —
+        // 2 bytes where 352_800 takes 3, so this is the case that must refuse:
         // and name the offline tool that re-serialises instead.
         let g = graph(
             value_info("mix", &[1, 2, W as i64]),

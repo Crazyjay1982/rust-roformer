@@ -1,31 +1,31 @@
-# Benchmarks, and how not to be fooled by them
+# Benchmarks
 
 Every number below carries the machine it came from and the instrument that read
 it. A number without those is not a measurement, and several of the traps here
-cost a day each to learn — they are written down so you do not pay again.
+cost a day each to learn.
 
 ## The instruments
 
 | Quantity | What reads it | What it actually means |
 | --- | --- | --- |
 | `peak_mb` on macOS | `proc_pid_rusage(RUSAGE_INFO_V4)`, `phys_footprint` | **high-water mark for the whole process lifetime.** An arm measured after a heavier arm in the same process can never report lower. One process, one number. |
-| `peak_mb` on Windows | `GetProcessMemoryInfo` sampled, plus `GlobalMemoryStatusEx` | the useful figure is available *commit*, not resident set — these differ on both platforms and are not interchangeable. Sampled quantity is `PagefileUsage` (current commit); the struct also carries `PeakPagefileUsage`, the true lifetime high-water, which is *not* what the sampler maxes. |
+| `peak_mb` on Windows | `GetProcessMemoryInfo` sampled, plus `GlobalMemoryStatusEx` | the useful figure is available *commit*, not resident set; these differ on both platforms and are not interchangeable. Sampled quantity is `PagefileUsage` (current commit); the struct also carries `PeakPagefileUsage`, the true lifetime high-water, which is *not* what the sampler maxes. |
 | `peak_mb` on Linux | `/proc/self/status`, sampled (`VmSize`), with `/proc/meminfo` | same caveat, sharper: `VmSize` is address space, so it overstates real pressure, and it falls immediately on free. `VmPeak`/`VmHWM` are the lifetime maxima; `MemAvailable` is the host's, not a cgroup quota's. |
 | wall clock | `Instant` around `separate()` | comparable **only** within a session, and only paired (see below) |
 | separation quality | correlation against a reference, and listening | see "the SI-SDR trap" |
 
 One consequence of those two rows that is easy to miss: `peak_mb_while` returns a
 **max of samples of a current value**, not the OS's own high-water counter. On
-macOS the two coincide, because the footprint ledger stays charged — verified, the
+macOS the two coincide, because the footprint ledger stays charged: verified, the
 printed peak matched `/usr/bin/time -l` exactly. On Windows and Linux the value it
 samples genuinely falls between samples, so the printed peak is a **lower bound** on
 `PeakPagefileUsage` / `VmPeak`: a spike that lives shorter than the 20 ms sampling
 interval is missed. The relationship is pinned by `tests/peak_sampler.rs`, which
-runs as its own process for that reason, and which — said plainly — can only fail on
-Windows and Linux: on macOS even a gutted sampler leaves it green, because nothing
+runs as its own process for that reason, and which can only fail on Windows and
+Linux: on macOS even a gutted sampler leaves it green, because nothing
 this side of the bracket can make the ledger go down.
 
-Two calibration facts about the macOS instrument, measured rather than assumed:
+Two calibration facts about the macOS instrument, both measured:
 
 * `ri_lifetime_max_phys_footprint` lags `ri_phys_footprint` inside the same
   struct while memory is climbing: a C probe saw **30,389 inversions in 835,455
@@ -50,8 +50,8 @@ Two calibration facts about the macOS instrument, measured rather than assumed:
 
 One axis the table has to carry and a machine label does not: **which tree was
 instrumented**. Rows 1, 2 and 5 were measured in DeepVideo, the desktop
-application this code was extracted from — same algorithms, same streaming
-structure, not this crate's binary — because a 45.8-minute track and a Windows
+application this code was extracted from (same algorithms, same streaming
+structure, not this crate's binary) because a 45.8-minute track and a Windows
 laptop are not things a public test suite can carry. The two forward-pass rows
 are the same story from the field.
 Read them as "what the technique cost", reproducible here in kind but not to the
@@ -59,7 +59,7 @@ megabyte; what this repository can reproduce on its own is the two rows under
 *What the same windows cost on this repository's own binary* and the
 walked-on-the-stock-export section below.
 
-The track-length term for the ONNX engine is ~20 MB/min — the per-window cost is
+The track-length term for the ONNX engine is ~20 MB/min: the per-window cost is
 what you pay for. That asymmetry is the design: memory scales with the window you
 choose, so nothing needs to scale with the track.
 
@@ -70,65 +70,105 @@ Both arms refuse an impossible window before allocating, but what they refuse
 
 | | what the pre-flight figure is | does it change with the window |
 | --- | --- | --- |
-| `onnx` | `OnnxEngine::estimate_forward_mb` — the two measured Windows anchors in the table above, through a `c + q·T²` fit; the log line names which trust the figure earned: `MEASURED at this window`, `interpolated between the two measured anchors`, or `EXTRAPOLATED` beyond either | yes: the window is a load-time parameter of the graph |
-| `mlx` | `mlx::separate::per_forward_mb` — an **analytic** sum of the graph's own shapes (the score matrix twice over for its softmax copy, the q/k/v projection, the block activations, the host buffers; a test pins it to 2,800–3,200 MB) | no, deliberately: `resolve_window` accepts only the native 352,800, because this arm implements the architecture rather than reading a baked-in shape — a shorter attention is a quality change, not a buffer resize |
+| `onnx` | `OnnxEngine::estimate_forward_mb`: the two measured Windows anchors in the table above, through a `c + q·T²` fit; the log line names which trust the figure earned: `MEASURED at this window`, `interpolated between the two measured anchors`, or `EXTRAPOLATED` beyond either | yes: the window is a load-time parameter of the graph |
+| `mlx` | `mlx::separate::per_forward_mb`: an **analytic** sum of the graph's own shapes (the score matrix twice over for its softmax copy, the q/k/v projection, the block activations, the host buffers; a test pins it to 2,800–3,200 MB) | no, deliberately: `resolve_window` accepts only the native 352,800, because this arm implements the architecture rather than reading a baked-in shape: a shorter attention is a quality change, not a buffer resize |
 
-Three consequences, since a table this shape invites the wrong subtractions:
+Three consequences of that difference:
 
 * The 4 s and 2 s rows below are **ONNX rows**. There is no shorter-window figure to
   add for `mlx`, and its own doc comment says the analytic bound is under the real
-  thing — MLX's allocator cache keeps freed regions, so the device-side peak sits
+  thing: MLX's allocator cache keeps freed regions, so the device-side peak sits
   above it. That is visible in the row above: ~3 GB analytic against the 6,016 MB
   device-side figure measured across a 45.8-minute job.
 * The `c + q·T²` fit is a **Windows commit** curve and nothing else. The comment on
   `estimate_forward_mb` says a third measurement that disagrees is a correction to
-  it; the Mac readings below are not such a measurement — different OS, different
-  quantity — so the invitation stands, for a Windows run on the same axis.
+  it; the Mac readings below are not such a measurement: different OS, different
+  quantity. A Windows run in the same unit is now in that table, and even it
+  corrects the curve only in the weak sense: what the binary prints is the whole
+  process, which carries the 909 MiB of weights the anchors do not, so it says what
+  a run at that window costs rather than what one forward of it costs.
 * The gate prices a window, not a job, and it runs while the graph is still just a
-  path on disk (`OnnxEngine::load` inspects the header; the session — and the 909 MiB
-  of weights it is built from, having first been read whole into a buffer to be
-  patched — comes later). An accept therefore means "one more forward of this length
+  path on disk (`OnnxEngine::load` inspects the header; the session, and the 909 MiB
+  of weights it is built from (having first been read whole into a buffer to be
+  patched), comes later). An accept therefore means "one more forward of this length
   fits", not "this run stays under N".
 
 ### What the same windows cost on this repository's own binary
 
 The forward-pass rows at the top are field readings from another OS and another
-tree. These two were taken here, with this crate's CLI, on a third instrument
-again: `phys_footprint`, the **lifetime high-water of the whole process**, which is
-what the binary prints as `peak N MB in this process (lifetime high-water, not per
-window)`.
+tree. The rows below were taken here, with this crate's CLI, and they print what
+the binary itself prints: `peak N MB in this process (lifetime high-water, not
+per window)`. Two instruments answer that line and they are not interchangeable:
+`phys_footprint` on macOS, sampled commit (`PagefileUsage`) on Windows, the
+latter a lower bound on `PeakPagefileUsage` for the reason given under "The
+instruments". Neither is the per-forward quantity the anchors are.
 
-| Window | Process peak — two fresh processes, order swapped | The gate's figure at that window |
-| --- | --- | --- |
-| 2 s (88 200) | **4,567 / 4,573 MB** | ~1,525 MB, labelled `EXTRAPOLATED below the short anchor` |
-| 4 s (176 400) | **6,919 / 6,640 MB** | ~5,100 MB, the anchor itself: `MEASURED at this window` |
+| Window | Process peak, two fresh processes | Instrument | The gate's figure at that window |
+| --- | --- | --- | --- |
+| 2 s (88 200) | **4,567 / 4,573 MB** | macOS `phys_footprint` | ~1,525 MB, labelled `EXTRAPOLATED below the short anchor` |
+| 4 s (176 400) | **6,919 / 6,640 MB** | macOS `phys_footprint` | ~5,100 MB, the anchor itself: `MEASURED at this window` |
+| 2 s (88 200) | **2,242 MB** | Windows commit, sampled | ~1,525 MB, same label |
+| 4 s (176 400) | **3,968 / 3,969 MB** | Windows commit, sampled | ~5,100 MB, same anchor |
 
 16 GB Apple Silicon, release build, 4 threads, the stock 8 s export reshaped in
 memory at load, the 12 s Commons aria excerpt whose SHA-256
 `8c223add4a20c14b…6937314a` [demo.md](demo.md) already pins, one process per
 number. The binary's figure agrees with a second instrument on the 2 s run:
-`/usr/bin/time -l` reported a peak footprint of 4,789,358,864 B — the same 4,567,
+`/usr/bin/time -l` reported a peak footprint of 4,789,358,864 B, the same 4,567,
 with maximum resident set lower at 3,888, as it should be. What this crate prints
 as "MB" is MiB, and both instruments here are that unit because they are the same
 quantity; the field rows at the top of this section were not re-derived here, so
 they are not converted either.
 
-Read the last column against the middle one and the obvious subtraction is the
-trap: the measured 4 s/2 s ratio is **1.45–1.52**, while the fitted curve implies
-3.34. The gap is a floor, not a broken curve — about 3 GB of the 2 s peak is not
-per-forward at all (weights, the runtime, and ORT's own buffers; we did not
-instrument which is which), and the marginal cost between the two windows grows far
-more gently here than Windows commit says it does. The consequence for anyone on a
-smaller machine is a specific band, not a guess: if free memory sits **between** the
-gate's figure and the measured peak — between 1.5 GB and 4.6 GB for a 2 s window —
-the gate accepts and the process then overflows it. An accept is a promise about one
-more window, never about the run.
+The two Windows rows come from a different box and a different day: Windows 11
+Build 26200, 13.86 GB physical, AMD Ryzen 7 5800H (8 cores / 16 logical
+processors), release build from `25dacfc`, rustc 1.97.1, commit limit 19,564 MB
+with a system-managed 5,376 MB pagefile, default 4 threads, and the same stock
+export, re-hashed here, equal to the `64a4f3be…f561` this file pins further down
+and [LICENSES.md](LICENSES.md) pins in full. That excerpt was re-cut here by the
+`demo.sh` command line from the same pinned
+`.ogg` (`bbdf0a8d4c151aee…752915c2`, still exact), and on ffmpeg 8.1.1 it hashes
+to `94a5f0ae54e1d0f3…d114a5b9`, not to the `8c223add…6937314a` pinned above. The
+`-ss` placement, the length, the codec, the rate and the channel count were all
+the documented ones, so this is not the mistake [demo.md](demo.md) warns about.
+It is the variable that file does not name: a pinned WAV hash also pins whatever
+ffmpeg build made it, and 8.1.1 makes a different file from the same bytes and the
+same command. The Windows rows in that table were measured on the `94a5f0ae…`
+bytes. The 4 s figure was read four times over the session, in four separate
+processes, as 3,968 / 3,969 / 3,968 / 3,967 MB, a 2 MB spread, which is why the
+Windows row quotes two of them.
 
-The native 8 s window has no Mac row, and will not get one by circumventing the
-gate. The clean-clone transcript further down prints exactly what happens here:
-`needs ~19400 MB per forward, 15476 MB available`, exit 1, nothing allocated. A
-figure obtained by disabling the check that exists to protect the machine measures
-the OOM, not the window.
+Do not subtract the gate's column from the measured one: the 4 s/2 s ratio is
+**1.45–1.52** on macOS and **1.77** on Windows, while the fitted curve implies
+3.34. The gap is a floor, not a broken
+curve: about 3 GB of the macOS 2 s peak is not per-forward at all (weights, the
+runtime, and ORT's own buffers; we did not instrument which is which), and the
+marginal cost between the two windows grows far more gently than the curve says.
+The Windows rows sharpen that warning rather than dissolving it, and they point it
+in both directions on one machine: at 2 s the process peak of 2,242 MB is
+**717 MB above** the 1,525 MB the gate asks for, while at 4 s the process peak of
+3,968 MB is **1,132 MB below** the 5,100 MB anchor. A gate that prices one forward
+under-prices a short window's process and over-prices a long one's, on the same
+box, in the same unit. The consequence for anyone on a smaller machine is a
+specific band, not a guess: if free memory sits **between** the gate's figure and
+the measured peak (between 1.5 GB and 4.6 GB for a 2 s window on macOS, between
+1.5 GB and 2.2 GB on this Windows box) the gate accepts and the process then
+overflows it. An accept is a promise about one more window, never about the run.
+
+One more dimension the curve does not carry, because it is not in the window: on
+this Windows machine the same 2 s window measured `peak 2,242 MB` at the default
+4 threads and `peak 2,846 MB` at `--threads 1` (149.2 s against 76.9 s), with
+byte-identical stems either way: `33d9556160021b2b…fe162636` for vocals,
+`b1ca2f428fea43f3…f3248d4e` for background. Lower thread count is not the cheaper
+option, and `--threads 1` is exactly what someone on a small machine reaches for;
+the gate, which reads the window and nothing else, priced both of those runs at
+1,525 MB.
+
+The native 8 s window has no peak row on either machine, and will get none by
+circumventing the gate. The clean-clone transcript further down prints exactly
+what happens there: `needs ~19400 MB per forward, 15476 MB available`, exit 1,
+nothing allocated. A figure obtained by disabling the check that exists to protect
+the machine measures the OOM, not the window.
 
 Note what "arena disabled" means. An arena allocator that keeps its blocks is a
 *plateau*, not a peak: with the arena open the same entry point reported 8.83 GB,
@@ -136,7 +176,7 @@ and closing it moved the peak to 3.44 GB without changing a sample of output. If
 you measure a memory "improvement" that turned out to be an allocator setting,
 check which of the two you were reporting.
 
-## Wall clock: we publish none
+## Wall clock
 
 On the machine this crate was developed on, the **same build, same model and same
 input** measured 88 s in one session and 158 s in another. Cross-session
@@ -151,7 +191,7 @@ first *and* second in one session, reports the position-cancelled difference, an
 prints `inconclusive` when the difference is smaller than the position term or
 the scatter, or when the two orders disagree in sign.
 
-## Quality, and the trap in the obvious metric
+## Quality
 
 * The `mlx` engine vs a PyTorch FFT reference on one window: **corr 0.9999997**.
 * The Rust port vs the Python reference on the same chunk schedule:
@@ -165,7 +205,7 @@ the scatter, or when the two orders disagree in sign.
 
 **The SI-SDR trap.** That 16 dB looks like a regression and is not one. Moving
 *only* the overlap of the same 4 s model from 1.5 s to 2.0 s moves the output
-10.5 dB away from another 4 s configuration — the chunk grid's alignment
+10.5 dB away from another 4 s configuration: the chunk grid's alignment
 perturbs the waveform by the same order of magnitude as the change you are trying
 to see. A per-sample difference metric against a different-schedule reference
 cannot separate "worse" from "differently positioned". To judge a window or
@@ -197,8 +237,8 @@ memory behaviour lives) before touching anything licensed.
 
 ### Walked once on the stock export, in a fresh clone
 
-Against `smank/mel-band-roformer-vocals-onnx` as downloaded — 953,292,899 bytes,
-sha256 `64a4f3be…f561`, re-hashed on this machine before the run — and the 12 s
+Against `smank/mel-band-roformer-vocals-onnx` as downloaded (953,292,899 bytes,
+sha256 `64a4f3be…f561`, re-hashed on this machine before the run) and the 12 s
 `bench synth` track, from a `git clone` of this repository with no other state.
 What follows are *decisions*, not timings: the identical configuration (12 s, 5
 windows of 176400, one machine, one day, one binary) measured 14.0 s, 15.7 s,
@@ -210,13 +250,12 @@ point of the section above, and no timing in this table is quoted as a result.
 | (no `--window`, native 352800) | refused before any allocation: `needs ~19400 MB per forward, 15476 MB available` |
 | `--window 200000` | refused: not a multiple of the 441-sample hop |
 | `--window 705600` | refused: growing needs the iSTFT normalisation table regenerated |
-| `--window 352800` | refused — reshaping to the declared window is a no-op, and the native 8 s price does not fit |
+| `--window 352800` | refused: reshaping to the declared window is a no-op, and the native 8 s price does not fit |
 | `--window 176400` | accepted; the session reported `window_samples = 176400`, 5 windows, both stems 2,116,844 B |
 
 The accepted runs carried a process-lifetime peak of 6.0–7.0 GB
-(`phys_footprint`, macOS, whole harness process — it includes the 953 MB FP32 graph
-the session holds, so it is not a per-forward figure and not comparable with the
-Windows per-forward anchors).
+(`phys_footprint`, macOS, whole harness process, so it includes the 953 MB FP32
+graph the session holds and is not a per-forward figure).
 
 `resume-check --window 176400` then ran three passes: the control inferred all 5
 windows; the cancelled pass committed 3 (330,750 frames, 1,323,044 B of `.part`
@@ -232,14 +271,14 @@ One caveat that is easy to read backwards: on this synthetic track the *vocals*
 stem is silent (peak 0 of int16, the model finding no voice in two alternating
 tones) and the residual carries everything. That is the expected output for
 non-vocal input, and it is why the harness prints byte counts rather than claiming
-it separated anything — separation quality is measured on real audio in the
+it separated anything. Separation quality is measured on real audio in the
 sections above, not here.
 
 For the graph surgery there is a harder check than any timing number:
 `tools/reduce_window.py` derives the short-window file from the long-window one,
 and the result is **byte-identical** to the artifact this work was built on
-(sha256 `2a83f2fe…`, 271,306,261 bytes). All 1,276 initializers — every weight,
-quantisation scale and zero point — are unchanged between the two files, which is
+(sha256 `2a83f2fe…`, 271,306,261 bytes). All 1,276 initializers (every weight,
+quantisation scale and zero point) are unchanged between the two files, which is
 what makes "shape constants only" a verified statement rather than a claim. The
 one thing that does not survive is cached shape metadata (6,945 `value_info`
 records), so a derived file is smaller than its source and a round trip back to
@@ -247,30 +286,31 @@ the original window is *not* bit-identical at file level.
 
 ## What is not measured
 
-* No fresh Windows wall-clock or peak figures are published here; the Windows
-  memory numbers above are from the field/lab runs that motivated the 4 s window,
-  not from a re-run on a clean tree.
+* No fresh Windows wall-clock figures are published here, and no new Windows
+  per-forward figures either. The two Windows peak rows above are whole-process
+  commit read from this crate's CLI; the per-forward anchors in the first table
+  are field/lab runs from the application that motivated the 4 s window.
 * Linux peak/commit behaviour of both engines: unmeasured.
 * The int8 quantisation step that produced the smaller ONNX file is **not** in
-  this repository — `tools/` changes the window of whatever file you feed it, and
+  this repository: `tools/` changes the window of whatever file you feed it, and
   quantising is a separate decision you should not take from a README.
 * Multi-stem or non-vocals Mel-Band RoFormer checkpoints: untested here. The
   shapes and band counts come from the file, but only the vocals checkpoint was
   ever run.
 * The `mlx` engine is compiled on Apple Silicon only, CI does not exercise it
   (see `.github/workflows/ci.yml`), and `--features mlx` does not build from a
-  clean checkout without an MLX install — the failure is `mlx-sys`'s CMake fetch of
+  clean checkout without an MLX install; the failure is `mlx-sys`'s CMake fetch of
   the C++ library, before any code here is reached. Every MLX number in this file
   was measured through a scratch manifest wired to a provisioned MLX, which is why
   they are reported beside the default build and not inside it.
 
-## Reproduced by the port itself
+## Reproduced in this repository
 
-Two claims worth re-measuring after extraction, taken from this crate's own test
+Two claims re-measured after extraction, taken from this crate's own test
 arms rather than quoted from the application they came from:
 
 * one 8-second window against a PyTorch float32 FFT reference: **corr 0.9999997**
-  (that single window took 4.06 s of wall clock — one sample of a quantity this
+  (that single window took 4.06 s of wall clock, one sample of a quantity this
   document elsewhere refuses to compare across sessions);
 * resume: six kill points (three on a six-window grid, three on a four-window
   tail), each re-inferring fewer windows and finishing with a **bit-identical**

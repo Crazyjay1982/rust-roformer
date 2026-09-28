@@ -7,17 +7,17 @@
 //! so that peak memory is a function of the window rather than of the track, and a
 //! run that was interrupted continues instead of starting over. None of those are
 //! observable from a `cargo add`, and all three are the reason the crate is worth
-//! depending on — so they get a command.
+//! depending on, so they get a command.
 //!
 //! # What it deliberately does not have
 //!
 //! No `--gpu`: the ONNX arm is CPU-bound and the MLX arm already *is* the Apple
-//! Silicon path, so a device flag would be a lie with a default. No format
-//! conversion: this reads WAV and points at `ffmpeg` for anything else, because a
-//! decoder nobody tests is a bug report nobody wants. No output-format choice, no
-//! batch mode, no config file. And no timing table — measurement is
-//! `examples/bench.rs`, which prints TSV and pairs runs inside one session,
-//! because absolute wall clock across sessions is not an instrument here.
+//! Silicon path, so a `--gpu` flag would promise a device this binary cannot
+//! pick. No conversion: this reads WAV and points at `ffmpeg` for anything else,
+//! because a decoder nothing here tests is a defect nobody could triage. No
+//! output-format choice, no batch mode, no config file. And no timing table:
+//! measurement is `examples/bench.rs`, which prints TSV and pairs runs inside one
+//! session, because absolute wall clock across sessions is not an instrument here.
 
 mod args;
 
@@ -65,7 +65,7 @@ fn main() -> ExitCode {
     }
 }
 
-/// Which engines are in *this* binary — the one fact a `cargo install` with
+/// Which engines are in *this* binary, the one fact a `cargo install` with
 /// unusual features cannot be guessed at from the outside.
 fn built_engines() -> String {
     let mut v = Vec::new();
@@ -279,8 +279,8 @@ fn summary(r: &SeparationReport, stems: &StemPaths, elapsed_s: f64) {
     if let Some(from) = r.resumed_from_frames.filter(|n| *n > 0) {
         // The line that says a resume was real: "skipped" can legitimately be 0 on
         // a seam that was re-inferred without being rewritten, and that is still
-        // work an earlier run did. A zero here means the same thing as `None` —
-        // started from sample zero — so it is not printed as a continuation.
+        // work an earlier run did. A zero here means the same thing as `None`
+        // (started from sample zero), so it is not printed as a continuation.
         println!(
             "  continued from frame {} — everything before it was already on disk",
             comma(from as u64)

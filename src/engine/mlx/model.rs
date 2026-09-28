@@ -2,7 +2,7 @@
 //!
 //! This is the architecture, written out in Rust: band split, alternating
 //! time/freq transformer blocks, per-band mask estimator, mask application.
-//! There is no exported graph here to execute — the shapes, the order of the
+//! There is no exported graph here to execute: the shapes, the order of the
 //! two attention axes and every numerical convention below are this file's own
 //! code, which is why the arm runs the checkpoint's native window with no graph
 //! surgery.
@@ -18,8 +18,8 @@
 //! ## The numerical conventions, and where each one is pinned
 //!
 //! * [`L2Norm`] is `x / max(||x||, 1e-12) * sqrt(dim) * weight`. Pinned by
-//!   `l2norm_keeps_the_sqrt_dim_factor` and `l2norm_device_path_matches_the_formula`
-//!   — the first against the arithmetic a "divide by the norm" fast path would
+//!   `l2norm_keeps_the_sqrt_dim_factor` and `l2norm_device_path_matches_the_formula`:
+//!   the first against the arithmetic a "divide by the norm" fast path would
 //!   give, the second against the host reference on real rows.
 //! * [`gelu`] is the exact erf form, `0.5x(1 + erf(x/√2))`, not the tanh
 //!   approximation. Pinned by `gelu_is_the_exact_erf_form` (host reference) and
@@ -79,12 +79,12 @@ pub const DIM: usize = 384;
 pub const DEPTH: usize = 6;
 /// Attention heads.
 pub const HEADS: usize = 8;
-/// Width of one head — the RoPE `dims` argument.
+/// Width of one head: the RoPE `dims` argument.
 pub const DIM_HEAD: usize = 64;
 /// Mel bands, i.e. the band split's and the mask estimator's per-axis count.
 pub const NUM_BANDS: usize = 60;
 /// Layers in one mask-estimator MLP: `mask_estimator_depth + 1` (torch
-/// semantics — a depth of 2 means three Linears).
+/// semantics (a depth of 2 means three Linears).
 pub const MASK_MLP_LAYERS: usize = 3;
 /// Width of the gathered q/k/v projection: `heads · dim_head`.
 pub const DIM_INNER: usize = HEADS * DIM_HEAD; // 512
@@ -125,7 +125,7 @@ fn mel_to_hz(mel: f64) -> f64 {
 }
 
 /// Which frequency bins each mel band owns, and the index arithmetic that
-/// follows from it. Pure — no tensor runtime, no weights.
+/// follows from it. Pure: no tensor runtime, no weights.
 pub struct BandLayout {
     /// Ascending freq-bin indices per band.
     pub band_freqs: Vec<Vec<usize>>,
@@ -312,8 +312,8 @@ fn mula(a: &Array, b: &Array) -> Array {
 
 /// Host-side statement of the [`L2Norm`] rule, one row at a time.
 ///
-/// Not used by the graph — the device path below is the implementation the
-/// model runs — but it is the one place the formula is written in ordinary
+/// Not used by the graph (the device path below is the implementation the
+/// model runs), but it is the one place the formula is written in ordinary
 /// arithmetic, and `l2norm_device_path_matches_the_formula` holds the device op
 /// to it.
 pub fn l2_norm_row(x: &[f32], weight: f32, out: &mut [f32]) {
@@ -343,7 +343,7 @@ pub fn gelu(x: &Array) -> Array {
 
 // ──────────────────────────── layers ───────────────────────────────
 
-/// `x / max(||x||, eps) * sqrt(dim) * weight` — the PyTorch-compatible L2Norm.
+/// `x / max(||x||, eps) * sqrt(dim) * weight`: the PyTorch-compatible L2Norm.
 ///
 /// Do **not** replace this with a root-mean-square norm fast path or with a
 /// plain "divide by the norm": the first moves where `eps` applies and the
@@ -408,7 +408,7 @@ impl Attention {
         let mut k = to_heads(&k);
         let v = to_heads(&v);
 
-        // RoPE: `traditional = true` (interleaved pairs) and base 10000 — the
+        // RoPE: `traditional = true` (interleaved pairs) and base 10000: the
         // repeat_interleave + rotate_half semantics of the reference
         // implementation. Validated by the parity arm, not by anything here.
         q = fast::rope(&q, DIM_HEAD as i32, true, 10000.0f32, 1.0f32, 0i32, None)
@@ -475,7 +475,7 @@ impl TransformerLayer {
 }
 
 /// Transformer with an L2Norm output norm (`norm_output = true` in the trained
-/// checkpoint — the twelve `…_transformer.norm.weight` tensors are used).
+/// checkpoint (the twelve `…_transformer.norm.weight` tensors are used).
 pub struct Transformer {
     pub(crate) layers: Vec<TransformerLayer>,
     pub(crate) norm: L2Norm,
@@ -651,7 +651,7 @@ impl RoFormerModel {
 
         // Denominator: bands-per-frequency repeated per channel. Shape
         // (1, slots, 1, 1) so it broadcasts against `summed`
-        // (1, slots, frames, 2) — the slot axis is dim 1.
+        // (1, slots, frames, 2): the slot axis is dim 1.
         let mut denom_v = Vec::with_capacity(n_slots_full);
         for &c in &layout.num_bands_per_freq {
             for _ in 0..CHANNELS {
@@ -880,7 +880,7 @@ impl RoFormerModel {
 // Every setter below is called exactly once per tensor by `weights.rs`, which
 // has already checked the shape against the architecture. They take ownership of
 // the loaded `Array` rather than copying data, and each asserts the rank it
-// expects — a wrong-rank weight would otherwise first show up as a wrong-sounding
+// expects; a wrong-rank weight would otherwise first show up as a wrong-sounding
 // separation.
 
 impl L2Norm {
@@ -941,7 +941,7 @@ impl Transformer {
     pub(crate) fn feed_forward_mut(&mut self) -> &mut FeedForward {
         &mut self.layers[0].ff
     }
-    /// The block's output norm — the last normalization in the graph.
+    /// The block's output norm: the last normalization in the graph.
     pub(crate) fn set_out_norm(&mut self, weight: Array) {
         self.norm.set_weight(weight);
     }
@@ -1181,7 +1181,7 @@ mod tests {
     }
 
     /// A model allocated from the constants alone must have the shapes the
-    /// checkpoint's 672 tensors fill — no weights involved.
+    /// checkpoint's 672 tensors fill, no weights involved.
     #[test]
     fn allocated_model_has_the_checkpoints_shapes() {
         let model = RoFormerModel::new();
@@ -1236,7 +1236,7 @@ mod tests {
     /// The convention, as arithmetic: a unit-L2 row of `[3, 4]` scaled by
     /// `sqrt(2)`.
     ///
-    /// Dropping the `sqrt(dim)` — which is what "just divide by the norm" does —
+    /// Dropping the `sqrt(dim)`, which is what "just divide by the norm" does:
     /// gives `[0.6, 0.8]`, a factor `1/sqrt(2)` away on this row and
     /// `1/sqrt(384)` on every real activation.
     #[test]
@@ -1279,7 +1279,7 @@ mod tests {
 
         // Where the floor is the whole story: a row of denormals.
         // `max(||x||, 1e-12)` clamps the denominator, while an epsilon *inside*
-        // the mean-square root would divide by ~1e-6 instead — six orders of
+        // the mean-square root would divide by ~1e-6 instead: six orders of
         // magnitude apart. This is the case a root-mean-square fast path gets
         // wrong even though it agrees on well-scaled rows.
         let mut out = [0.0f32; 4];
@@ -1389,7 +1389,7 @@ mod tests {
         assert_eq!(shapes[MASK_MLP_LAYERS - 1].1, 2 * dim_in);
 
         // Behaviour on zeros: with zero weights every layer outputs its bias, so
-        // a bias of 1 in both halves gives 1 · sigmoid(1) per feature — i.e. the
+        // a bias of 1 in both halves gives 1 · sigmoid(1) per feature, i.e. the
         // two halves are `v` and `g`, in that order, and `v` is not gated by a
         // Tanh applied after the last Linear.
         let mlp = MaskMlp {

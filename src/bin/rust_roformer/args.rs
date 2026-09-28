@@ -3,9 +3,9 @@
 //! Separate from `main` because it is the part with the most ways to be wrong and
 //! the only part that can be tested without a model file. The surface is
 //! deliberately small: this tool exists so that the three behaviours worth seeing
-//! in the crate — a window that cannot fit is refused before anything is
+//! in the crate (a window that cannot fit is refused before anything is
 //! allocated, a long track is streamed rather than loaded, and an interrupted run
-//! continues — can be observed without writing Rust. Anything else belongs in the
+//! continues) can be observed without writing Rust. Anything else belongs in the
 //! library API, where it can be reviewed by the code that calls it.
 
 use std::path::PathBuf;
@@ -235,13 +235,13 @@ fn value(
 /// forward, and what a caller actually knows is how long a window they can
 /// afford. One decimal place is accepted because at 44.1 kHz `0.1 s` is exactly
 /// ten hops, so a rounded duration cannot fall off the hop grid for arithmetic
-/// reasons — whether a window fits the graph stays the engine's judgement, not
+/// reasons; whether a window fits the graph stays the engine's judgement, not
 /// something this parser duplicates.
 pub fn window_from(text: &str) -> Result<usize, String> {
     let text = text.trim();
     let samples = if let Some(sec) = text.strip_suffix('s').or_else(|| text.strip_suffix('S')) {
         // Plain decimal only. Rust's `f64::from_str` also accepts `1e9`, `inf` and
-        // `NaN`, and a window of 4.4e13 samples is not a duration anyone meant —
+        // `NaN`, and a window of 4.4e13 samples is not a duration anyone meant:
         // it fails somewhere far less legible than the flag that asked for it.
         if sec.is_empty()
             || sec == "."
@@ -329,7 +329,7 @@ mod tests {
     fn a_flag_losing_its_value_says_so_rather_than_defaulting() {
         // `--window --fresh` is the dangerous typo: honouring it would run the
         // stock 8 s graph, refuse on a small machine, and read as a false claim
-        // about the memory gate. The assertion is on "needs a value" specifically —
+        // about the memory gate. The assertion is on "needs a value" specifically:
         // the parse failure below would also be an error, so merely expecting a
         // non-zero exit would let a mutation that swallows the flag through.
         for args in [
@@ -430,7 +430,7 @@ mod tests {
     #[test]
     fn help_carries_the_project_home() {
         // A one-line claim about where this comes from belongs in the text every
-        // user reads first, and a test is cheaper than remembering it at the next
+        // user reads first, and a test costs less than remembering it at the next
         // rewrite of this block.
         assert!(
             HELP.contains("https://deepforgehub.com"),

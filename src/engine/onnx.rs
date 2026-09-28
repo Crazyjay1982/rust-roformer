@@ -2,7 +2,7 @@
 //!
 //! # What this file is responsible for
 //!
-//! The graph does the maths — conv STFT, band split, alternating transformer,
+//! The graph does the maths: conv STFT, band split, alternating transformer,
 //! mask, iSTFT are all inside the exported model, and the input it wants is a
 //! plain `[1, 2, window]` f32 block of stereo at 44.1 kHz. Everything that is
 //! *not* the model lives here: the schedule that tiles a track with windows, the
@@ -14,7 +14,7 @@
 //!
 //! `sources` is `[1, source, channel, length]` with the **source axis first**:
 //! source 0 is vocals, source 1 is the graph's own residual. In these exports
-//! that residual is produced inside the graph as `Sub(mix, source0)` — it is not
+//! that residual is produced inside the graph as `Sub(mix, source0)`; it is not
 //! recomputed here, because a graph that separates a different way (three
 //! sources, an accompaniment stem, a learned residual) would be silently mangled
 //! by a subtraction we imposed on it. Both stems are accumulated through the same
@@ -27,16 +27,16 @@
 //! those bytes in memory and hands the result to
 //! `ort`'s `Session::builder().commit_from_memory(..)`. Nothing derived is ever written
 //! to disk: the file the user downloaded stays the file on disk. Loading a
-//! session from a buffer — and editing a graph in memory, which `ort` also
-//! exposes — is the runtime's capability, not this crate's; what this crate adds
+//! session from a buffer, and editing a graph in memory, which `ort` also
+//! exposes, is the runtime's capability, not this crate's; what this crate adds
 //! is the map of which bytes in a Mel-Band RoFormer export carry the window, and
 //! the argument for why rewriting them is exact. The transient
-//! cost is one buffer holding the whole model (≈ the file size — 259 MiB for the
+//! cost is one buffer holding the whole model (≈ the file size, 259 MiB for the
 //! 271,832,758-byte int8 vocals export), released as soon as the session has
 //! parsed it; it coexists with the runtime's own copy of the weights, so building
 //! a patched session is the one moment the process holds the model twice.
 //!
-//! ## Stale `value_info`: measured, not assumed
+//! ## Stale `value_info`
 //!
 //! A patched graph keeps the cached shape-inference records it was exported with
 //! (`value_info`), and they describe the *old* window. Deleting them would change the
@@ -46,8 +46,8 @@
 //! from its declared 352,800 down to 176,400:
 //!
 //! **The session is built; the runtime does not refuse.** Of the 6,945 records it
-//! complains about four — the ones whose length actually contradicts the patched
-//! shape — and it complains in the form of a warning, then proceeds:
+//! complains about four (the ones whose length actually contradicts the patched
+//! shape), and it complains in the form of a warning, then proceeds:
 //!
 //! ```text
 //! [W:onnxruntime:, graph.cc:123 MergeShapeInfo] Error merging shape info for output.
@@ -59,10 +59,10 @@
 //!
 //! "Falling back to lenient merge" is the story: ORT re-runs shape inference, and where
 //! its own result disagrees with a cached record it does not treat the graph as broken.
-//! The line worth reading is the third one — the `sources` output is involved in the
+//! The third line is the one that matters: the `sources` output is involved in the
 //! disagreement (the two shapes it names are `{1,2,2,176400}` and `{-1,2,2,352800}`),
 //! which is precisely the tensor this engine consumes. So the behaviour is tolerated
-//! *because it was measured*, not because a stale cache is assumed harmless:
+//! because it was measured rather than assumed harmless:
 //! [`OnnxEngine::with_window`] asserts the session's declared input dimension, every
 //! forward re-checks the output length against the window, and a real 12-second
 //! separation through a patched session produced a full-length pair whose resumed bytes
@@ -74,7 +74,7 @@
 //! with nothing else changed: **8.83 GB peak with the arena on, 3,440 MB with it
 //! off, and not one output sample differing**. The reason is that this loop calls
 //! a session once per window, so the arena's only job is to park a
-//! gigabytes-sized set of dead activations between calls — a resident ceiling
+//! gigabytes-sized set of dead activations between calls: a resident ceiling
 //! that turns a long job into an allocation failure on a 16 GB machine, for no
 //! reuse benefit at all. [`OnnxEngine::with_arena`] turns it back on for callers
 //! who want it; expect the peak to follow.
@@ -104,7 +104,7 @@
 //! float. A **mono** file is *replicated* onto both channels (not summed to one,
 //! not mid/side upmixed), which is what that reader does and what keeps a mono
 //! input and its stereo result comparable sample for sample. Any other rate is
-//! resampled by that same reader — **linear interpolation**, deliberately: it
+//! resampled by that same reader (**linear interpolation**, deliberately): it
 //! happens inside the windowed read, so no pass over the whole track is needed.
 //! [`crate::audio::resample_chunked`] is the windowed-sinc alternative for a
 //! caller willing to produce a 44.1 kHz file first; feeding that output back in
@@ -119,7 +119,7 @@
 //!
 //! [`crate::error::Error::Cancelled`] and every other failure both leave the `.part`
 //! pair, its sidecar and its bytes in place, because both mean "the next attempt should
-//! not start at zero" — the trait says as much, and a checkpoint you throw away is the
+//! not start at zero"; the trait says as much, and a checkpoint you throw away is the
 //! work you just paid for. Deleting a checkpoint is a *separate*, explicit act:
 //! [`crate::stream::discard_staging`] (or [`crate::stream::StemWriter::cleanup`]) on the
 //! caller's side. The published names only ever appear together, at the end, so a
@@ -155,13 +155,13 @@ use crate::stream::{chunk_starts, resume_plan, StemJob, StemWriter, WavSource};
 
 /// Overlap for the linear crossfade when the caller does not choose one: 1.5 s at
 /// 44.1 kHz, which is the geometry the flush proofs in [`crate::stream`] are
-/// stated against — clamped to half the window where the model is shorter,
+/// stated against, clamped to half the window where the model is shorter,
 /// because the grid requires `overlap <= window / 2` (see
 /// [`crate::stream::chunk_starts`]).
 pub const DEFAULT_OVERLAP: usize = 66_150;
 
-/// The two measured per-forward anchors behind [`OnnxEngine::estimate_forward_mb`]
-/// — `(window samples, MB)`. See the module docs: they are the whole dataset, and
+/// The two measured per-forward anchors (as `(window samples, MB)`) behind
+/// [`OnnxEngine::estimate_forward_mb`]. See the module docs: they are the whole dataset, and
 /// a third measurement that disagrees is a correction to this file, not a detail
 /// to average away.
 const SHORT_ANCHOR: (usize, f64) = (176_400, 5_100.0);
@@ -201,7 +201,7 @@ pub struct OnnxEngine {
     window: usize,
     /// Window the file on disk declares, before any patch, so a log can name both.
     declared: usize,
-    /// Cached shape-inference records in the graph — stale after a patch by
+    /// Cached shape-inference records in the graph, stale after a patch by
     /// construction, and left in place. See the module note on what the runtime
     /// makes of them.
     value_info_records: usize,
@@ -239,8 +239,8 @@ impl OnnxEngine {
     /// After the session exists, its **own** declared input dimension is compared
     /// with `target_samples`. That is not redundant with the patch: the patch
     /// proves we rewrote the bytes we found, the session proves the runtime agrees
-    /// about what those bytes mean. If the runtime reports a different number — a
-    /// dimension we missed, or an input whose length is dynamic — this is
+    /// about what those bytes mean. If the runtime reports a different number (a
+    /// dimension we missed, or an input whose length is dynamic), this is
     /// [`Error::Model`] and nothing runs.
     pub fn with_window(path: &Path, target_samples: usize) -> Result<Self> {
         Self::build(path, Some(target_samples))
@@ -263,9 +263,9 @@ impl OnnxEngine {
         let mut value_info_records = report.value_info_records;
         let mut patched_to = None;
         if let Some(target) = target {
-            // Every refusal in `patch_window` — growing past the exported capacity,
+            // Every refusal in `patch_window` (growing past the exported capacity,
             // a window carried by a weight, a dimension varint that would change
-            // width — leaves `bytes` untouched, so there is no half-patched graph
+            // width) leaves `bytes` untouched, so there is no half-patched graph
             // that could be committed and quietly compute the wrong thing.
             let report = graph::patch_window(&mut bytes, target)?;
             window = report.declared_window as usize;
@@ -316,8 +316,8 @@ impl OnnxEngine {
 
     /// Read the model file, patching it first if this engine was asked to.
     ///
-    /// The buffer holds the whole file — ≈ 259 MiB for the 271,832,758-byte int8
-    /// vocals export — and is dropped by the caller as soon as the runtime has
+    /// The buffer holds the whole file (about 259 MiB for the 271,832,758-byte int8
+    /// vocals export) and is dropped by the caller as soon as the runtime has
     /// parsed it. It is the model's second copy, not a third, and it never
     /// outlives the build.
     fn load_bytes(&self) -> Result<Vec<u8>> {
@@ -357,7 +357,7 @@ impl OnnxEngine {
 
     /// Intra-op / inter-op thread counts for the session.
     ///
-    /// Takes effect on the next session build — which is the first forward of the
+    /// Takes effect on the next session build, which is the first forward of the
     /// next `separate()` call if a session is already live under different
     /// settings.
     #[must_use]
@@ -505,7 +505,7 @@ impl OnnxEngine {
 
     /// One forward: `[2, window]` in, the graph's `sources` out.
     ///
-    /// `mix` is always the *full* window — the caller zero-pads a short tail and
+    /// `mix` is always the *full* window: the caller zero-pads a short tail and
     /// trims on output, so the runtime never sees a shape the graph was not built
     /// for. The result is **copied** out (≈ 1.4 MB for a 4 s window, against a
     /// forward that costs gigabytes and seconds) rather than borrowed: a borrow
@@ -658,11 +658,11 @@ impl SeparationEngine for OnnxEngine {
 /// as a function than to discover after a forward:
 ///
 /// * [`SeparationOptions::window_samples`] is a *statement about the file*, not a
-///   request the runtime can honour — the window is baked into the graph's constants,
+///   request the runtime can honour: the window is baked into the graph's constants,
 ///   so a disagreement means the wrong engine was loaded, and
 ///   [`OnnxEngine::with_window`] is what the caller actually wants.
 /// * `overlap <= window / 2` is what keeps the not-yet-finalized region at one window
-///   or less — the memory bound on the merge buffers, and the reason a resume replays
+///   or less: the memory bound on the merge buffers, and the reason a resume replays
 ///   at most two windows to rebuild a seam. `chunk_starts` asserts it in a debug build;
 ///   in a release build an outside value would splice a resumed stem differently from an
 ///   uninterrupted one, which is silent and wrong. It does *not* promise two
@@ -708,8 +708,8 @@ struct RunStats {
 impl OnnxEngine {
     /// Refuse a window this machine cannot forward, before any work is spent.
     ///
-    /// The estimate is exactly what its name says — see
-    /// [`estimate_forward_mb`](Self::estimate_forward_mb) — and the log line says
+    /// The estimate is exactly what its name says (see
+    /// [`estimate_forward_mb`](Self::estimate_forward_mb)) and the log line says
     /// whether the window sits between the two measured anchors or outside them,
     /// because those two cases deserve different amounts of trust.
     fn preflight(&self, window: usize, opts: &SeparationOptions) -> Result<()> {
@@ -799,11 +799,11 @@ impl OnnxEngine {
         // Linear crossfade ramp: `w[k] = k / (overlap - 1)`. The fade-in uses it
         // forward and the fade-out uses it reversed, so a frame inside one seam gets
         // `ramp[k]` from the later window and `1 - ramp[k]` from the earlier one and the
-        // two add to exactly 1. Where a third window also contributes — the appended
-        // tail chunk — see
+        // two add to exactly 1. Where a third window also contributes (the appended
+        // tail chunk), see
         // `tests::the_grid_bounds_the_pending_region_and_characterizes_its_seams`. The merge
         // is still a weighted mean because the weights are accumulated and
-        // divided, not assumed.
+        // divided rather than assumed.
         let denom = (overlap - 1).max(1) as f32;
         let ramp: Vec<f32> = (0..overlap).map(|i| i as f32 / denom).collect();
 
@@ -968,16 +968,16 @@ impl OnnxEngine {
             frames: total,
             // Forwards actually run: the whole schedule minus the windows below
             // `prime_from`, which were neither inferred nor flushed here. Note that
-            // the priming windows *are* counted — they really did run.
+            // the priming windows *are* counted: they really did run.
             windows_inferred: inferred,
-            // Windows neither inferred nor written by this call — the ones below
+            // Windows neither inferred nor written by this call, the ones below
             // `prime_from`, whose whole contribution was already flushed. This is
             // the figure that keeps `windows_inferred + windows_resumed == n`;
             // `plan.first` is *not* it, because the seam windows between there and
             // here ran again to rebuild the pending crossfade even though their
             // bytes came off disk. For "how much was already done" use
             // `resumed_from_frames`, which is non-zero whenever the resume reused
-            // anything at all — including the case where it skipped nothing.
+            // anything at all, including the case where it skipped nothing.
             windows_resumed: plan.prime_from,
             resumed_from_frames: (plan.keep_frames > 0).then_some(plan.keep_frames),
         })
@@ -1015,7 +1015,7 @@ impl OnnxEngine {
 /// `[batch, source, channel, length]` with `batch == 1`, so a row is one
 /// contiguous run of `length` samples at `(source * channels + channel) * length`
 /// in the flat buffer. Keeping the buffer flat rather than an `Array4` is what lets
-/// the merge loop hand out plain slices — the shape checks happen once, when a
+/// the merge loop hand out plain slices: the shape checks happen once, when a
 /// forward's output is adopted, and indexing after that cannot be wrong about the axis
 /// order without being wrong here too.
 pub struct Sources {
@@ -1058,14 +1058,14 @@ impl Sources {
 
 /// This window's crossfade envelope, written into `w` (which the loop reuses).
 ///
-/// Fade in over the head, fade out over the tail, 1.0 in between — and *no* fade in
+/// Fade in over the head, fade out over the tail, 1.0 in between, and *no* fade in
 /// on the first window and *no* fade out on the last, because those edges are the
 /// ends of the track: tapering them would silently attenuate the first and last
 /// `overlap` frames of the stem with nothing to crossfade against.
 ///
 /// With `hop >= overlap` a frame has at most two contributors, and where it has two
 /// they are one window's tail and the next window's head, so the weights sum to
-/// exactly 1 — which is why the accumulation divides by the weight sum rather than
+/// exactly 1, which is why the accumulation divides by the weight sum rather than
 /// normalising some other way. `adjacent_windows_partition_unity` pins it.
 fn fade_weights(ramp: &[f32], i: usize, n: usize, w: &mut [f32]) {
     let overlap = ramp.len();
@@ -1078,7 +1078,7 @@ fn fade_weights(ramp: &[f32], i: usize, n: usize, w: &mut [f32]) {
         // Mirrored, not copied: the tail has to *descend* from 1.0 to 0.0 so that it
         // and the next window's ascending head sum to exactly 1 at every frame of the
         // overlap. An ascending tail would make the normalised merge a weighted mean
-        // dominated by the later window — a seam artefact at every hop, and silent in
+        // dominated by the later window: a seam artefact at every hop, and silent in
         // any test that only compares two runs of the same code.
         for k in 0..overlap {
             w[window - 1 - k] = ramp[k];
@@ -1378,7 +1378,7 @@ mod tests {
         // The reuse is stated in frames and as a partition, not as "skipped more
         // than nothing": a run cancelled at its first boundary has one window of
         // output on disk and zero windows *skipped*, because that window is
-        // re-inferred as seam priming — bytes reused, count unmoved.
+        // re-inferred as seam priming: bytes reused, count unmoved.
         assert!(
             resumed.resumed_from_frames.is_some(),
             "the continuing pass wrote the track from sample zero: {resumed:?}"
@@ -1543,7 +1543,7 @@ mod tests {
             );
 
             // The first window of the track has nothing before it, so its head is
-            // not tapered — but its tail is, because the next window crosses into it.
+            // not tapered, but its tail is, because the next window crosses into it.
             fade_weights(&ramp, 0, 4, &mut w);
             assert!(
                 w[..overlap].iter().all(|&x| x == 1.0),
@@ -1616,8 +1616,8 @@ mod tests {
     /// What the grid has to guarantee for the merge loop, characterized rather than
     /// asserted loosely, over both bindings and the awkward totals.
     ///
-    /// * What a window leaves behind its flush point is a subset of that window — one
-    ///   window of buffers, never a track of them — and on a regular grid (every gap
+    /// * What a window leaves behind its flush point is a subset of that window (one
+    ///   window of buffers, never a track of them) and on a regular grid (every gap
     ///   exactly one hop) it tightens to `overlap`. An appended final window lands
     ///   closer than a hop, and the region it leaves is correspondingly wider; that is
     ///   still bounded by the window, which is the only thing the buffers promise.
@@ -1783,7 +1783,7 @@ mod tests {
 
     /// A caller-supplied track, sliced to `seconds` of real audio.
     ///
-    /// The slice is a prefix copied sample for sample — not a synthetic stand-in.
+    /// The slice is a prefix copied sample for sample, not a synthetic stand-in.
     /// A whole song is simply not what a window-loop test needs.
     fn real_track(dir: &Path, seconds: usize) -> Option<PathBuf> {
         let src = PathBuf::from(std::env::var("RR_TEST_WAV").ok()?);

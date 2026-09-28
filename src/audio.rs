@@ -5,7 +5,7 @@
 //! [`WavSource`], which lives next to the writer it pairs with and is re-exported
 //! here because the input side of this crate is meant to be found in one place).
 //! Everything below is for the *other* shape of read a caller needs: the whole
-//! track once, mono, usually at a rate far below the file's own — a level
+//! track once, mono, usually at a rate far below the file's own: a level
 //! meter, a voice-activity pre-pass, a checksum of what was actually decoded.
 //!
 //! Two allocations are what a naive version of that read costs, and both scale
@@ -17,7 +17,7 @@
 //! 2. the resampler's own history. `rubato::SincFixedIn::new(ratio, 2.0, _,
 //!    chunk_size, channels)` allocates a `chunk_size + 2·sinc_len` ring buffer
 //!    *per channel*, and the one-shot calling style passes the whole waveform
-//!    length as `chunk_size` — so the source-rate row exists twice for the
+//!    length as `chunk_size`, so the source-rate row exists twice for the
 //!    duration of the resample.
 //!
 //! [`stream_mono`] removes (1) by folding each interleaved block to mono as it
@@ -30,7 +30,7 @@
 //! What streaming the resample costs is stated in [`resample_chunked`], and it
 //! is not nothing: at a ratio `f64` cannot represent exactly the chunked row is
 //! not bit-identical to the one-shot row. That difference is documented,
-//! measured and pinned by a test rather than buried.
+//! measured, and pinned by a test.
 
 use std::io::{Read, Seek};
 use std::path::Path;
@@ -117,7 +117,7 @@ fn read_header<R: Read + Seek>(reader: &WavReader<R>, path: &Path) -> Result<Hea
         ));
     }
     // `len()` counts values across all channels, so dividing by the channel count
-    // gives frames — and it is available before a single sample is read, which is
+    // gives frames, and it is available before a single sample is read, which is
     // what lets every buffer here be allocated once instead of grown.
     Ok(Header {
         channels,
@@ -265,7 +265,7 @@ where
 /// Decode a WAV to mono float32 at `target_sr`, resampling in blocks if needed.
 ///
 /// This is the whole-track form of [`stream_mono`] and the only reader here that
-/// returns a row, so its output does scale with the track — at 16 kHz mono that
+/// returns a row, so its output does scale with the track: at 16 kHz mono that
 /// is 64 bytes per millisecond, which is the price of asking for the whole thing
 /// rather than a bug in the pump.
 ///
@@ -291,7 +291,7 @@ pub fn read_mono_in_chunks(path: &Path, target_sr: u32, chunk: usize) -> Result<
     // short piece returns the filter's response to its own zero-pad, which on a
     // 0.2 s clip is a row far longer than the clip. Handing it over as one piece
     // is the one-shot's own shape, so the row is bit-identical to
-    // `resample_mono` on the same fold — and nothing is given up, because at this
+    // `resample_mono` on the same fold, and nothing is given up, because at this
     // size no source-rate row ever existed to stream around.
     let piece = if header.frames == 0 {
         chunk
@@ -319,7 +319,7 @@ pub fn read_mono_in_chunks(path: &Path, target_sr: u32, chunk: usize) -> Result<
 ///
 /// Handing [`resample_mono`] a whole track makes
 /// `SincFixedIn::new(ratio, 2.0, _, waveform.len(), 1)` allocate a
-/// `chunk_size + 2·sinc_len` history buffer — a second copy of the source-rate
+/// `chunk_size + 2·sinc_len` history buffer: a second copy of the source-rate
 /// row, on top of the row itself. This type gives the filter
 /// [`READ_CHUNK_FRAMES`] frames at a time, so the history buffer has a fixed size
 /// and the source row never exists at all.
@@ -364,15 +364,15 @@ impl StreamingSinc {
     /// output. The two ways to get this wrong were both shipped once:
     ///
     /// * calling `process_into_buffer` (the full-chunk form) for the last piece
-    ///   and skipping it when the piece is short — that drops the tail of the
+    ///   and skipping it when the piece is short, that drops the tail of the
     ///   track, up to a whole block of audio;
     /// * looping `process_partial_into_buffer(None)` afterwards to "drain" the
-    ///   delay line — which feeds the filter a full chunk of silence every time
+    ///   delay line, which feeds the filter a full chunk of silence every time
     ///   and emits its response to that silence as if it were audio. There is
     ///   nothing to wait for: the call never returns `(0, 0)`, so a drain loop has
     ///   no terminating condition and every iteration adds about `chunk·ratio`
-    ///   samples. Sixteen iterations — the number the first version of this code
-    ///   ran before giving up and taking what it had — invent a few hundred
+    ///   samples. Sixteen iterations (the number the first version of this code
+    ///   ran before giving up and taking what it had) invent a few hundred
     ///   thousand samples on a three-minute input, and a probe that compares only
     ///   a common prefix will not see any of it. See
     ///   `draining_past_the_short_final_chunk_invents_samples`.
@@ -452,13 +452,13 @@ pub fn resample_mono(waveform: &[f32], from_sr: u32, to_sr: u32) -> Result<Vec<f
 /// [`resample_mono`] driven in `chunk`-frame pieces instead of one piece the
 /// length of the input.
 ///
-/// **The last-bit story, stated rather than hidden.** For an exact
-/// input/output ratio — 48 kHz → 16 kHz, where the filter's internal step is
-/// `1/ratio` = 3.0 and every frame lands on an integer phase — chunking changes
+/// For an exact
+/// input/output ratio (48 kHz → 16 kHz, where the filter's internal step is
+/// `1/ratio` = 3.0 and every frame lands on an integer phase), chunking changes
 /// nothing and the two rows agree bit for bit at any block size.
 ///
-/// For a ratio `f64` cannot represent — 44.1 kHz → 16 kHz, whose step is
-/// 2.75625 — they cannot agree, and this is a property of the filter rather than
+/// For a ratio `f64` cannot represent (44.1 kHz → 16 kHz, whose step is
+/// 2.75625) they cannot agree, and this is a property of the filter rather than
 /// of this function. rubato's `SincFixedIn` advances an output position by
 /// accumulating that step (`idx += t_ratio`) and, at the end of every call,
 /// re-anchors it by subtracting the block size (`last_index = idx -
@@ -479,7 +479,7 @@ pub fn resample_mono(waveform: &[f32], from_sr: u32, to_sr: u32) -> Result<Vec<f
 /// The other difference is length, and it favours the chunked row: the final
 /// short piece is zero-padded to a full block, so the row runs up to
 /// `chunk·ratio` samples past the one-shot's end. Those samples are the filter's
-/// response to the audio cutting off — a couple of dozen samples of ring-out and
+/// response to the audio cutting off: a couple of dozen samples of ring-out and
 /// then exact zeros (see `streaming_resample_of_a_short_file_reports_its_own_tail`).
 /// What the overshoot costs a consumer is length, not signal.
 pub fn resample_chunked(
@@ -524,7 +524,7 @@ mod tests {
     }
 
     /// Non-periodic per-channel signals. Periodic test audio hides an off-by-one
-    /// frame in the fold — the next frame can carry the same value — which is
+    /// frame in the fold (the next frame can carry the same value) which is
     /// exactly the mistake this fold could make, so the generator deliberately
     /// produces a different value for every frame of every channel.
     fn sample_at(frame: usize, channel: usize) -> f32 {
@@ -650,7 +650,7 @@ mod tests {
     }
 
     /// The fold replaced a whole-buffer decode, so it must hand the resampler and
-    /// any downstream stage bit-identical samples — for every channel count and
+    /// any downstream stage bit-identical samples, for every channel count and
     /// every supported depth, at the file's own rate and resampled.
     ///
     /// The fixtures here are all shorter than one block, which is the case the
@@ -767,7 +767,7 @@ mod tests {
 
     /// Several blocks, inexact ratio: the streamed read must stay within the
     /// documented last-bit envelope of the one-shot row and must not come back
-    /// *shorter* than it — a short row would mean the final partial block had
+    /// *shorter* than it: a short row would mean the final partial block had
     /// been dropped, which is the bug [`StreamingSinc::push`] exists to avoid.
     #[test]
     fn a_multi_block_read_differs_from_the_one_shot_only_in_lsb_s() {
@@ -1074,7 +1074,7 @@ mod tests {
     }
 
     /// `stream_mono` propagates a sink error instead of decoding the rest of the
-    /// track first — a caller that stopped at the first block must not pay for a
+    /// track first: a caller that stopped at the first block must not pay for a
     /// four-hour file.
     #[test]
     fn a_sink_that_stops_ends_the_read() {

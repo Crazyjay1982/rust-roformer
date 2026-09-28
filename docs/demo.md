@@ -1,7 +1,7 @@
 # Listening
 
 This crate ships no audio and no weights, so nothing here lets you *hear* it
-yet — and every quality claim in [benchmarks.md](benchmarks.md) is about memory,
+yet, and every quality claim in [benchmarks.md](benchmarks.md) is about memory,
 windows and resumption rather than about sound. This page is the missing part:
 two recordings you are allowed to run a remover on, one command, and the numbers
 those exact bytes produce.
@@ -28,8 +28,8 @@ That is exit 1 on a 16 GB machine before anything is allocated. The window the
 script asks for by default (176400 = 4 s) is not a workaround baked into a
 different file: it is the same 953 MB export, reshaped in memory at load time.
 
-Once the excerpt exists, the tool you would actually install can run on it —
-the harness is for measuring, the command line is for working:
+Once the excerpt exists, the tool you would actually install can run on it (the
+harness is for measuring, the command line is for working):
 
 ```sh
 rust-roformer --model melband_roformer_vocals.onnx --window 4s -o stems demo-audio/aria_12s.wav
@@ -45,7 +45,7 @@ typed again, and `continued from frame 220,500` in the summary.
 ## The two sources
 
 Both are on Wikimedia Commons, and the licence line below is what the file's own
-page declares — read off the API and the page templates on 2026-09-28, not
+page declares: read off the API and the page templates on 2026-09-28, not
 inferred from the filename. Neither recording is ours, neither is distributed by
 this repository, and the credit lines belong with any audio you make from them.
 
@@ -90,7 +90,7 @@ window-length FFT of the whole 12 s.
 
 What each row is for:
 
-* **The aria's low end is gone from the vocal stem** — 63 dB of it — and is still
+* **The aria's low end is gone from the vocal stem** (63 dB of it) and is still
   in the background stem (−0.0 dB versus the input). That is a real separation,
   not a gain change: the two stems differ in *content*, not in level.
 * **The voice band survives** at −0.1 dB in the vocal stem while the background
@@ -111,8 +111,8 @@ test sets with exact stems; those numbers are not comparable to anything here.
 
 ## Please do not judge quality with synthesized audio
 
-`examples/bench.rs synth` — the fixture the [README transcript](../README.md#quick-start)
-runs on — writes two alternating tones (196 Hz and 980 Hz, with one harmonic
+`examples/bench.rs synth` (the fixture the [README transcript](../README.md#quick-start)
+runs on) writes two alternating tones (196 Hz and 980 Hz, with one harmonic
 each) in 1.7-second phrases, plus deterministic hash-noise to keep every window
 non-silent. It is the right input for everything that is about *shape and
 behaviour*: which windows the gate refuses, which windows the hop rule refuses,
@@ -126,15 +126,15 @@ vocals stem:   all 2,116,800 samples are exactly 0
 background:    1.000 of the input's energy
 ```
 
-Not "poor quality" — *digital silence*. The checkpoint decided a sine wave is not
+Not "poor quality": *digital silence*. The checkpoint decided a sine wave is not
 a voice and put none of it in the vocal stem. That is the model behaving as
 trained, and it is also why the byte-identity claims in this repository are still
 worth something: a pipeline that returns exactly zero on input it rejects is the
 same pipeline that returns exactly the same bytes on restart.
 
-It gets worse before it gets better. A hand-built "voice-like" signal — two
+A hand-built "voice-like" signal (two
 harmonic singers with formant weighting, vibrato and syllable envelopes over a
-guitar-ish bed, with the exact vocal component retained as ground truth — went
+guitar-ish bed, with the exact vocal component retained as ground truth) went
 through the same path, and this time the vocal stem was not empty:
 
 | Comparison | SI-SDR against the true vocal |
@@ -144,8 +144,8 @@ through the same path, and this time the vocal stem was not empty:
 | RMS of that stem, relative to the ground-truth vocal | 0.16× |
 
 So the separator did less good than not running it at all, because most of the
-"voice" stayed in the *background* stem. Nothing in the port is broken here — the
-model has never seen a sawtooth with vibrato — but a bug report filed with
+"voice" stayed in the *background* stem. Nothing in the port is broken here: the
+model has never seen a sawtooth with vibrato, but a bug report filed with
 synthesized input will read as one. If you need a reproducible input that is not
 someone's recording, use the `bright` control: real voice, nothing to remove, and
 a number (−39.8 dB in the background stem) that says whether the pipeline is

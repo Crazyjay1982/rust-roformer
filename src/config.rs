@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 /// Progress reporting: `(percent 0..=100, message)`.
 ///
-/// Called from the inference thread. Implementations must not block — the
+/// Called from the inference thread. Implementations must not block: the
 /// separation loop checks cancellation and flushes state between windows and
 /// treats a slow callback as wall-clock cost, not as a bug.
 pub type Progress = Arc<dyn Fn(i32, &str) + Send + Sync>;
@@ -88,8 +88,8 @@ pub struct SeparationOptions {
     /// the window is baked into the graph as constants, so the value must agree
     /// with it and a disagreement is an error rather than a resize. To run the
     /// stock weights at a shorter window, reshape at load time with
-    /// `OnnxEngine::with_window(path, n)` — the constructor behind the `onnx`
-    /// feature — and set this to the same figure if you want the agreement
+    /// `OnnxEngine::with_window(path, n)` (the constructor behind the `onnx`
+    /// feature) and set this to the same figure if you want the agreement
     /// checked.
     pub window_samples: Option<usize>,
     /// Overlap between windows, for the linear crossfade. `None` = the default
@@ -159,7 +159,7 @@ pub struct SeparationReport {
     pub windows_inferred: usize,
     /// Windows skipped because their output was already complete on disk. Reaching
     /// a resumed seam can cost one window re-inferred *above* this figure, so this
-    /// can legitimately be 0 on a run that still reused a checkpoint — read
+    /// can legitimately be 0 on a run that still reused a checkpoint; read
     /// [`Self::resumed_from_frames`] for "was anything reused".
     pub windows_resumed: usize,
     /// Frames that were already flushed when this call started, if any. `Some(n)`

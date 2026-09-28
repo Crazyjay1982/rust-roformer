@@ -14,7 +14,7 @@
 //! and no model file arrives except one you downloaded and named yourself.
 //!
 //! "RoFormer" here is the *Mel-Band RoFormer* separation architecture: not the
-//! NLP model the rotary-embedding paper is named after, and not BS-RoFormer —
+//! NLP model the rotary-embedding paper is named after, and not BS-RoFormer:
 //! the two group the frequency axis differently, so their weights do not
 //! interchange. Projects that already do parts of what is listed below are
 //! linked from the README's "Related work" section, and the delta claimed here is
@@ -31,7 +31,7 @@
 //!   interleaved pass, rewrites its own 44-byte WAV header at every window
 //!   boundary, and therefore leaves a playable, complete prefix on disk at all
 //!   times.
-//! * **Resume.** A long job that dies — OOM, power loss, a user hitting stop —
+//! * **Resume.** A long job that dies (OOM, power loss, a user hitting stop)
 //!   can be continued from the last flushed window instead of starting over,
 //!   with the job identity (input bytes and mtime, model bytes and mtime,
 //!   window, overlap) checked field by field first. Mismatch means start over,
@@ -48,14 +48,14 @@
 //! ## Engines
 //!
 //! * `onnx` (default): ONNX Runtime, portable CPU. `mlx` (feature `mlx`, Apple
-//!   Silicon): a from-scratch Rust implementation of the architecture — its own
-//!   STFT, band-split, alternating time/freq transformer, mask estimator —
+//!   Silicon): a from-scratch Rust implementation of the architecture, with its own
+//!   STFT, band-split, alternating time/freq transformer and mask estimator,
 //!   loading weights extracted from the exported checkpoint.
 //!
 //! ## From a shell
 //!
-//! The `rust-roformer` binary exposes exactly the list above — window, threads,
-//! checkpoint, cancellation — behind seven options, so the behaviours that are
+//! The `rust-roformer` binary exposes exactly the list above (window, threads,
+//! checkpoint, cancellation) behind seven options, so the behaviours that are
 //! otherwise only visible from Rust (a refusal before allocation, a run that
 //! continues where an interrupted one stopped) can be seen without a `main`.
 //! `rust-roformer --help` is the reference, and the README's Quick start shows a

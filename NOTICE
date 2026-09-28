@@ -9,7 +9,6 @@ re-implements:
   - Mel-Band RoFormer architecture: ZFTurbo, MIT, arXiv:2310.01809
   - vocals checkpoint: KimberleyJSN/melbandroformer (card tag: MIT)
   - ONNX export: smank/mel-band-roformer-vocals-onnx (card tag: MIT)
-  - baseline comparison used while validating: mixxxdj/demucs (MIT)
-Each of those carries its own license terms for the *weights*. Training-data
-provenance for the vocals checkpoint is not stated on any of those cards, which
-is disclosed in docs/LICENSES.md rather than resolved by the MIT tags above.
+Training-data provenance for the vocals checkpoint is not stated on any of those
+cards, which is disclosed in docs/LICENSES.md rather than resolved by the MIT tags
+above.

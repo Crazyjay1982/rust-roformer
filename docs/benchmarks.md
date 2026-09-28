@@ -28,13 +28,22 @@ Two calibration facts about the macOS instrument, measured rather than assumed:
 
 ## Memory
 
-| Case | Before | After | Machine |
+| Case | Before | After | Where it was measured |
 | --- | --- | --- | --- |
 | Whole-track audio read (45.8 min) | 1,094 MB | **169 MB** | Apple Silicon, debug build, 20 ms sampling |
 | Separation host peak, 45.8 min (`mlx`) | 3,405 MB | **72 MB** | Apple Silicon; device-side figures unchanged value for value (6,017 → 6,016 MB) |
 | One forward pass, stock 8 s window | — | ~19.4 GB commit / ~10.7 GB resident | Windows, 16 GB class |
 | One forward pass, 4 s window | — | ~5.1 GB commit / ~3.7 GB resident | Windows, 16 GB class |
 | Product path, arena disabled | 8.83 GB peak | **3,440 MB peak, 349 MB plateau** | Windows, 16 GB class |
+
+One axis the table has to carry and a machine label does not: **which tree was
+instrumented**. Rows 1, 2 and 5 were measured in the desktop application this code
+was extracted from — same algorithms, same streaming structure, not this crate's
+binary — because a 45.8-minute track and a Windows laptop are not things a public
+test suite can carry. The two forward-pass rows are the same story from the field.
+Read them as "what the technique cost", reproducible here in kind but not to the
+megabyte; the numbers this repository can reproduce on its own are in the
+walked-on-the-stock-export section below.
 
 The track-length term for the ONNX engine is ~20 MB/min — the per-window cost is
 what you pay for. That asymmetry is the design: memory scales with the window you

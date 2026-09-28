@@ -285,13 +285,16 @@ forward instead of after a failed allocation.
 
 * No full-band multi-stem separator, no speech enhancement, no diarisation. This
   crate takes a mix and gives you vocals plus the residual.
-* No `--gpu` heroics. The CPU/MLX paths are what 16 GB machines actually have.
+* No GPU requirement. The default engine is portable CPU; the `mlx`, `cuda` and
+  `coreml` features are opt-in accelerators, and the 16 GB laptop case — which is
+  what this crate is designed around — is served by the CPU path.
 * No bundled weights, no downloads from inside the library. A caller chooses the
   file; `sha256` checking is yours to wire up.
-* No re-implementation of the ONNX Runtime tensor pipeline. If you want to run a
-  *different* Mel-Band RoFormer checkpoint (drums, bass, 6-stem), the shapes and
-  band counts are in the graph and in `model.rs`; only the vocals checkpoint is
-  exercised here.
+* No claim of checkpoint generality. If you want a *different* Mel-Band RoFormer
+  (drums, bass, 6-stem), the shapes and band counts are in the graph and in
+  `model.rs`, and the engine reads its window from the file rather than hardcoding
+  it — but only the vocals checkpoint has been run here, so treat the rest as
+  untested rather than as supported.
 
 ## Status
 

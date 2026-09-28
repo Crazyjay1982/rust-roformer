@@ -22,7 +22,6 @@ verified against the public APIs on 2026-09-27 rather than copied from a README:
 | Architecture + training code | `ZFTurbo/Music-Source-Separation-Training` (GitHub), arXiv:2310.01809 | MIT (repository licence field) | 2026-09-27, 1,562 stars, last push 2026-09-26 |
 | Vocals checkpoint | `KimberleyJSN/melbandroformer` (Hugging Face) | `license:mit` card tag | 2026-09-27, card last modified 2026-04-22 |
 | ONNX export used by the `onnx` engine | `smank/mel-band-roformer-vocals-onnx` (Hugging Face) | `license:mit` card tag | 2026-09-27, card last modified 2026-07-02 |
-| Baseline this code was compared against while being written | `mixxxdj/demucs` (MIT) | MIT | — |
 
 The export is a single file, which makes integrity checking unambiguous:
 `melband_roformer_vocals.onnx`, **953,292,899 bytes**, git-lfs oid

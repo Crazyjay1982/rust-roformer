@@ -128,7 +128,11 @@ for that first release rather than pointing at something that 404s.
   `ort-sys`'s `edition2024` manifest — while the CI job asked only about the
   engine-free build, which meant the badge was green and false at the same time.
   Both facts are now measured in one job (1.88 default, 1.75 without an engine),
-  and the crate was never published, so no one is being moved.
+  and the crate was never published, so no one is being moved. One side effect
+  worth naming: the old value had been silencing `clippy::manual_is_multiple_of`
+  legitimately (`u*::is_multiple_of` is 1.87+), so raising it surfaced two sites —
+  the hop rule in `graph.rs` and the CLI's digit-grouping helper — now written with
+  the method, with the gate's own tests unchanged.
 - `Cargo.toml` gained `repository` and `homepage`; the README's install block
   names the real git URL instead of an `OWNER` placeholder, so a reader can install
   this today without waiting for a release.

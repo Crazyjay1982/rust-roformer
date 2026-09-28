@@ -602,7 +602,9 @@ mod tests {
         let mono: Vec<f32> = match channels {
             1 => samples,
             2 => samples
-                .chunks_exact(2)
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|c| (c[0] + c[1]) * 0.5)
                 .collect(),
             n => samples

@@ -148,11 +148,20 @@ for that first release rather than pointing at something that 404s.
   workflow that fails on its own premise.
 - `Cargo.toml` gained `repository` and `homepage`; the README's install block
   names the real git URL instead of an `OWNER` placeholder, so a reader can install
-  this today without waiting for a release.
-- `Cargo.toml` gained `homepage`, so the crates.io page carries a link to the
-  project home; `repository` still waits for the remote. The crate docs and
-  `rust-roformer --help` each state the home URL once, and a test asserts the
-  help text keeps it.
+  this today without waiting for a release. The crate docs and `rust-roformer --help`
+  each state the home URL once, and a test asserts the help text keeps it.
+- Two `chunks_exact(<constant>)` call sites became `as_chunks::<N>().0`: clippy
+  1.98.0 added `chunks_exact_to_as_chunks`, and the `fmt-clippy` job runs `-D
+  warnings` against rolling stable, so the badge went red on the first push after
+  that release landed without a single line of this crate's code changing. Both
+  sites are test helpers, not the shipped read path — one whole-buffer WAV oracle
+  in `audio.rs`, one gguf-float decoder in the MLX module — and the rewrite is
+  iteration-identical, so the suites report the same counts as before it
+  (`as_chunks` is 1.88-stable, which is also this crate's floor, and the MSRV job
+  checks `--all-targets` so it would notice if that stopped being true). Worth
+  naming the shape of the failure rather than burying it: a gate pinned to a
+  moving target is a gate that will go red on someone else's release day, and that
+  is a maintenance decision, not an accident of this diff.
 - The README, the crate docs and `docs/benchmarks.md` now name the application this
   code came out of — DeepVideo — rather than describing it as "a desktop
   video-translation application". It is the same sentence that says where the

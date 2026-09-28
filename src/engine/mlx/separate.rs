@@ -902,7 +902,9 @@ mod tests {
             .map(|p| p.trim().parse().expect("shape dim"))
             .collect();
         let floats: Vec<f32> = bytes[10 + header_len..]
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
             .collect();
         assert_eq!(floats.len(), shape.iter().product::<usize>());

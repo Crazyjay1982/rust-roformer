@@ -150,6 +150,12 @@ for that first release rather than pointing at something that 404s.
   names the real git URL instead of an `OWNER` placeholder, so a reader can install
   this today without waiting for a release. The crate docs and `rust-roformer --help`
   each state the home URL once, and a test asserts the help text keeps it.
+- The README carries a CI badge. The placeholder comment above the badges had been
+  holding three of them back until "the remote and the first release exist"; the
+  remote exists now and the workflow passes on it (fmt-clippy, msrv, and the test
+  matrix on Linux/macOS/Windows, all green on `5c57d71`), so the CI badge is filled
+  in and the crates.io and docs.rs badges stay withheld — the crate is still
+  unpublished, and their URLs would 404.
 - Two `chunks_exact(<constant>)` call sites became `as_chunks::<N>().0`: clippy
   1.98.0 added `chunks_exact_to_as_chunks`, and the `fmt-clippy` job runs `-D
   warnings` against rolling stable, so the badge went red on the first push after

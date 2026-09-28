@@ -1,8 +1,10 @@
 # rust-roformer
 
-<!-- The crates.io, docs.rs and CI badges go here once the remote and the first
-     release exist; a badge that 404s is worse than a badge that is missing. -->
+<!-- The crates.io and docs.rs badges go here once the first release exists; a
+     badge that 404s is worse than a badge that is missing. The CI badge is here
+     now because the remote it points at is real. -->
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
+[![build](https://github.com/Crazyjay1982/rust-roformer/actions/workflows/ci.yml/badge.svg)](https://github.com/Crazyjay1982/rust-roformer/actions/workflows/ci.yml)
 ![MSRV](https://img.shields.io/badge/MSRV-1.88-lightgrey)
 ![weights included](https://img.shields.io/badge/weights%20included-none-green)
 [![home](https://img.shields.io/badge/home-deepforgehub.com-informational)](https://deepforgehub.com)

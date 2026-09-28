@@ -59,6 +59,12 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
   measured at two windows.
 - `scripts/audit_public.sh` — refuses to let machine paths, account-looking
   strings, credentials or model/audio binaries into the tree.
+- Documentation with the claims checked rather than phrased: `docs/benchmarks.md`
+  gives every number its machine, its sampling point and its failure mode;
+  `docs/LICENSES.md` states what the upstream MIT tags do and do not answer; and
+  the README's "Related work" section links the Rust, C++ and Python projects
+  already doing parts of this, then limits the delta to what was actually
+  measured here. No superlatives, and no claim on the model.
 - CI: fmt, clippy with warnings denied, tests on Linux/macOS/Windows with and
   without default features, and an MSRV job so `rust-version` is a claim someone
   checks rather than decor.

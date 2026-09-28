@@ -7,6 +7,13 @@
 //! four-hour track be separated on a 16 GB laptop without ever holding the
 //! track, the intermediate buffers, or the result in memory at the same time.
 //!
+//! "RoFormer" here is the *Mel-Band RoFormer* separation architecture: not the
+//! NLP model the rotary-embedding paper is named after, and not BS-RoFormer —
+//! the two group the frequency axis differently, so their weights do not
+//! interchange. Projects that already do parts of what is listed below are
+//! linked from the README's "Related work" section, and the delta claimed here is
+//! deliberately narrow.
+//!
 //! ## What you get
 //!
 //! * **Streaming in.** [`audio::WavSource`] decodes a window at a time and

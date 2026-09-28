@@ -8,7 +8,16 @@ What is ours is everything around it: two inference engines and an I/O layer tha
 separates a four-hour track on a 16 GB laptop without ever holding the track, the
 intermediate activations, or the result in memory at the same time. If you want the
 model, download it; if you want a Rust separation step that does not OOM at 02:00
-on a laptop, this is the interesting part.
+on a laptop, this is the interesting part. Where that claim overlaps something
+that already exists, [Related work](#related-work) links it.
+
+**Which RoFormer.** "RoFormer" is an overloaded name. Here it means *Mel-Band
+RoFormer*, the band-split separation model above — not the NLP RoFormer that the
+rotary-embedding paper is named after, and not **BS-RoFormer**. The two audio
+models share an idea and differ in how the frequency axis is grouped (fixed bin
+groups vs a mel filterbank), so **their weights are not interchangeable**: a
+`melband_*` checkpoint will not load into a BS-RoFormer implementation, whatever
+the name in the README says.
 
 ```
 cargo add rust-roformer            # or: git = "…"
@@ -221,6 +230,56 @@ session and 158 s in another. Absolute wall clock from two sessions is not an
 instrument; only same-session, order-swapped pairs are, and
 `scripts/bench_pair.sh` enforces that shape (it runs each configuration first and
 second, drops contaminated arms, and reports medians rather than a winner).
+
+## Related work
+
+This is not a lonely field, and the useful comparison is with projects, not with
+an empty list. What follows was checked against each project's own README and
+source on 2026-09-28, which is also the date after which the statements below may
+have gone stale.
+
+| Project | What it already does |
+| --- | --- |
+| [python-audio-separator](https://github.com/nomadkaraoke/python-audio-separator) | The de-facto tool for these checkpoints: runs RoFormer from `.ckpt` in PyTorch, with bounded overlap-add buffers and whole-track working buffers that spill to CPU on long inputs. |
+| [BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp) | C++/GGML engine for BS- **and** Mel-Band RoFormer on GGUF weights, where the window is a runtime flag (`--chunk-size`, `--overlap`). |
+| [UVR-rs](https://github.com/IronHpc/UVR-rs) | Rust BS-RoFormer 1296 inference from the original `.ckpt` (no ONNX, no conversion), Burn with optional OpenVINO, exposing `--window-frames` and window-level parallelism. |
+| [charon-audio](https://github.com/Valkyra-Labs/charon-audio) | Rust + `ort` separation of HTDemucs; its streaming path is documented bit-identical to whole-buffer separation, with progress and cancellation. RoFormer is explicitly out of scope there. |
+| [OpenKara](https://github.com/thedavidweng/OpenKara) | Rust/Tauri app whose per-chunk checkpointing lets an interrupted separation resume. |
+| [windowed-roformer](https://github.com/smulelabs/windowed-roformer) | Solves the same quadratic attention in the *architecture* — windowed sink attention, fine-tuned from the vocal checkpoint — at a fraction of the FLOPs. Needs its own weights. |
+| [MSS_ONNX_TensorRT](https://github.com/ZFTurbo/MSS_ONNX_TensorRT), [port-bs-roformer-onnx](https://github.com/santiquiroz/port-bs-roformer-onnx) | The other answer to "shorter window": re-export the graph, and chunk outside it in the driver (8 s blocks, 50 % overlap, reflect padding). |
+| [soufmer](https://github.com/Chaceon-albus/soufmer), [melband-roformer-mlx](https://github.com/Da1sypetals/melband-roformer-mlx), [mel-roformer-mlx-swift](https://github.com/xocialize/mel-roformer-mlx-swift) | A Tauri desktop front end for this model, and Rust / Swift MLX implementations of it. |
+
+Also out there and not examined closely enough to describe: [demucs-rs](https://github.com/nikhilunni/demucs-rs),
+[stem-splitter-core](https://github.com/gentij/stem-splitter-core),
+[portable-vocal-remover](https://github.com/Nikaidou-Shinku/portable-vocal-remover),
+[melband-roformer-infer](https://github.com/openmirlab/melband-roformer-infer).
+
+So the delta this crate is claiming is narrow, and stated as three things rather
+than as a superlative:
+
+* **A survey of this export.** Which six integers carry the window in a Mel-Band
+  RoFormer ONNX graph, why shrinking it is provably exact while growing it needs
+  the iSTFT normalisation table regenerated, and an assertion that the session's
+  own declared dimensions agree with what we think we built. The mechanism of
+  loading an edited graph is not ours — ONNX Runtime does it, and
+  [`ort`](https://github.com/pykeio/ort) wraps it (`commit_from_memory`, and
+  `edit_from_memory` for editing). What is ours is knowing which bytes in *this*
+  graph to change, and why that is sound.
+* **Byte-identical resume across a crossfade grid** — including the seam-replay
+  arithmetic — and a harness column (`resumed_from`) that fails the check when a
+  "resume" silently re-ran the whole track. Resumable separation exists elsewhere;
+  a resumed run whose bytes are indistinguishable from an uninterrupted one is a
+  stronger statement, and it is a test here.
+* **The window as a load-time parameter of the file you already downloaded**,
+  with no derived artifact. Re-exporting produces a second model file, GGUF
+  produces a converted one, and a from-scratch engine produces its own weights;
+  none of those is wrong, they just cost a file.
+
+What this crate is *not*: the first RoFormer outside Python, the first Rust
+separator, the first to bound memory by windowing, or the first to refuse when
+there isn't enough of it — inference servers have been printing "requires more
+memory than is available" for years, and this one just does it before the first
+forward instead of after a failed allocation.
 
 ## Non-goals
 

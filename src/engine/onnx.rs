@@ -26,7 +26,11 @@
 //! output dimensions ([`crate::graph`]), so [`OnnxEngine::with_window`] patches
 //! those bytes in memory and hands the result to
 //! `ort`'s `Session::builder().commit_from_memory(..)`. Nothing derived is ever written
-//! to disk: the file the user downloaded stays the file on disk. The transient
+//! to disk: the file the user downloaded stays the file on disk. Loading a
+//! session from a buffer — and editing a graph in memory, which `ort` also
+//! exposes — is the runtime's capability, not this crate's; what this crate adds
+//! is the map of which bytes in a Mel-Band RoFormer export carry the window, and
+//! the argument for why rewriting them is exact. The transient
 //! cost is one buffer holding the whole model (≈ the file size — 259 MiB for the
 //! 271,832,758-byte int8 vocals export), released as soon as the session has
 //! parsed it; it coexists with the runtime's own copy of the weights, so building

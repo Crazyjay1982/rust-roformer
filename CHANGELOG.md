@@ -156,6 +156,37 @@ for that first release rather than pointing at something that 404s.
   matrix on Linux/macOS/Windows, all green on `5c57d71`), so the CI badge is filled
   in and the crates.io and docs.rs badges stay withheld — the crate is still
   unpublished, and their URLs would 404.
+- `docs/benchmarks.md` now says plainly that the two engines' pre-flight numbers are
+  different kinds of objects. They read alike in a table and are not alike: the ONNX
+  arm consults `estimate_forward_mb`, a `c + q·T²` curve through the two measured
+  Windows commit anchors that moves with `--window` and labels its own answer
+  measured / interpolated / extrapolated; the MLX arm consults `per_forward_mb`, an
+  analytic sum of the graph's shapes pinned to 2,800–3,200 MB by a test, which
+  cannot move because `resolve_window` accepts only the native 352,800 — there a
+  shorter window is a different attention length, a quality change rather than a
+  buffer resize. So the 4 s and 2 s figures are ONNX figures, and there is no
+  shorter-window MLX number to add.
+- Two ONNX windows measured with this crate's own binary, one fresh process each,
+  order-swapped: **2 s peaks 4,567 / 4,573 MB, 4 s peaks 6,919 / 6,640 MB** (16 GB
+  Apple Silicon, release build, 4 threads, stock export reshaped at load, the 12 s
+  Commons excerpt `docs/demo.md` pins by SHA-256; `/usr/bin/time -l` independently
+  reported 4,789,358,864 B = that same 4,567, with a lower maximum resident set, as
+  it should be). The finding is in the comparison rather than the numbers: measured,
+  the 4 s/2 s ratio is **1.45–1.52** while the fitted curve implies **3.34**. That is
+  a floor, not a contradiction — about 3 GB of the peak is weights and runtime, which
+  the per-forward estimate never claimed to price and which `preflight` cannot see,
+  because `OnnxEngine::load` only inspects the graph header and the session is built
+  afterwards. The documented consequence is a band, not a slogan: a machine whose
+  free memory sits *between* the estimate and the real peak — 1.5 GB to 4.6 GB for a
+  2 s window — is accepted by the gate and then overflows it. **Whether the gate
+  should also price the graph itself is left open, not decided here**: that is a
+  behaviour change to a shipped check, so the doc records what was measured and does
+  not pre-empt the call.
+- The README's window examples are now the round set `8 s / 4 s / 2 s`, and a `2.5s`
+  one is gone: what a reader copies out of a README should be what the memory figures
+  cover. The parser still takes any hop multiple including fractional seconds — a
+  test exercises `2.5s` as a *format*, which is what it was always testing — and the
+  hop rule refuses what it always refused.
 - Two `chunks_exact(<constant>)` call sites became `as_chunks::<N>().0`: clippy
   1.98.0 added `chunks_exact_to_as_chunks`, and the `fmt-clippy` job runs `-D
   warnings` against rolling stable, so the badge went red on the first push after

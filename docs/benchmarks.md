@@ -43,12 +43,80 @@ structure, not this crate's binary — because a 45.8-minute track and a Windows
 laptop are not things a public test suite can carry. The two forward-pass rows
 are the same story from the field.
 Read them as "what the technique cost", reproducible here in kind but not to the
-megabyte; the numbers this repository can reproduce on its own are in the
+megabyte; what this repository can reproduce on its own is the two rows under
+*What the same windows cost on this repository's own binary* and the
 walked-on-the-stock-export section below.
 
 The track-length term for the ONNX engine is ~20 MB/min — the per-window cost is
 what you pay for. That asymmetry is the design: memory scales with the window you
 choose, so nothing needs to scale with the track.
+
+### The two engines do not consult the same kind of number
+
+Both arms refuse an impossible window before allocating, but what they refuse
+*against* is built differently, and only one of them moves with `--window`:
+
+| | what the pre-flight figure is | does it change with the window |
+| --- | --- | --- |
+| `onnx` | `OnnxEngine::estimate_forward_mb` — the two measured Windows anchors in the table above, through a `c + q·T²` fit; the log line names which trust the figure earned: `MEASURED at this window`, `interpolated between the two measured anchors`, or `EXTRAPOLATED` beyond either | yes: the window is a load-time parameter of the graph |
+| `mlx` | `mlx::separate::per_forward_mb` — an **analytic** sum of the graph's own shapes (the score matrix twice over for its softmax copy, the q/k/v projection, the block activations, the host buffers; a test pins it to 2,800–3,200 MB) | no, deliberately: `resolve_window` accepts only the native 352,800, because this arm implements the architecture rather than reading a baked-in shape — a shorter attention is a quality change, not a buffer resize |
+
+Three consequences, since a table this shape invites the wrong subtractions:
+
+* The 4 s and 2 s rows below are **ONNX rows**. There is no shorter-window figure to
+  add for `mlx`, and its own doc comment says the analytic bound is under the real
+  thing — MLX's allocator cache keeps freed regions, so the device-side peak sits
+  above it. That is visible in the row above: ~3 GB analytic against the 6,016 MB
+  device-side figure measured across a 45.8-minute job.
+* The `c + q·T²` fit is a **Windows commit** curve and nothing else. The comment on
+  `estimate_forward_mb` says a third measurement that disagrees is a correction to
+  it; the Mac readings below are not such a measurement — different OS, different
+  quantity — so the invitation stands, for a Windows run on the same axis.
+* The gate prices a window, not a job, and it runs while the graph is still just a
+  path on disk (`OnnxEngine::load` inspects the header; the session — and the 909 MiB
+  of weights it is built from, having first been read whole into a buffer to be
+  patched — comes later). An accept therefore means "one more forward of this length
+  fits", not "this run stays under N".
+
+### What the same windows cost on this repository's own binary
+
+The forward-pass rows at the top are field readings from another OS and another
+tree. These two were taken here, with this crate's CLI, on a third instrument
+again: `phys_footprint`, the **lifetime high-water of the whole process**, which is
+what the binary prints as `peak N MB in this process (lifetime high-water, not per
+window)`.
+
+| Window | Process peak — two fresh processes, order swapped | The gate's figure at that window |
+| --- | --- | --- |
+| 2 s (88 200) | **4,567 / 4,573 MB** | ~1,525 MB, labelled `EXTRAPOLATED below the short anchor` |
+| 4 s (176 400) | **6,919 / 6,640 MB** | ~5,100 MB, the anchor itself: `MEASURED at this window` |
+
+16 GB Apple Silicon, release build, 4 threads, the stock 8 s export reshaped in
+memory at load, the 12 s Commons aria excerpt whose SHA-256
+`8c223add4a20c14b…6937314a` [demo.md](demo.md) already pins, one process per
+number. The binary's figure agrees with a second instrument on the 2 s run:
+`/usr/bin/time -l` reported a peak footprint of 4,789,358,864 B — the same 4,567,
+with maximum resident set lower at 3,888, as it should be. What this crate prints
+as "MB" is MiB, and both instruments here are that unit because they are the same
+quantity; the field rows at the top of this section were not re-derived here, so
+they are not converted either.
+
+Read the last column against the middle one and the obvious subtraction is the
+trap: the measured 4 s/2 s ratio is **1.45–1.52**, while the fitted curve implies
+3.34. The gap is a floor, not a broken curve — about 3 GB of the 2 s peak is not
+per-forward at all (weights, the runtime, and ORT's own buffers; we did not
+instrument which is which), and the marginal cost between the two windows grows far
+more gently here than Windows commit says it does. The consequence for anyone on a
+smaller machine is a specific band, not a guess: if free memory sits **between** the
+gate's figure and the measured peak — between 1.5 GB and 4.6 GB for a 2 s window —
+the gate accepts and the process then overflows it. An accept is a promise about one
+more window, never about the run.
+
+The native 8 s window has no Mac row, and will not get one by circumventing the
+gate. The clean-clone transcript further down prints exactly what happens here:
+`needs ~19400 MB per forward, 15476 MB available`, exit 1, nothing allocated. A
+figure obtained by disabling the check that exists to protect the machine measures
+the OOM, not the window.
 
 Note what "arena disabled" means. An arena allocator that keeps its blocks is a
 *plateau*, not a peak: with the arena open the same entry point reported 8.83 GB,

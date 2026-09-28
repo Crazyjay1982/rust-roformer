@@ -68,6 +68,17 @@ disabled, which moved the product path's own peak to 3,440 MB with a 349 MB
 plateau. See [docs/benchmarks.md](docs/benchmarks.md) for every number's
 provenance — several are Apple Silicon and do not transfer.*
 
+Those two rows are also the whole range of the memory gate's trust: they are the
+anchors `OnnxEngine::estimate_forward_mb` is fitted through, so asking for
+`--window 2s` sits *below* the short anchor and the pre-flight line says so
+(`EXTRAPOLATED below the short anchor`). What a 2 s window actually costs on an
+Apple Silicon machine running this crate's own binary is measured in
+[docs/benchmarks.md](docs/benchmarks.md) — different instrument, whole-process
+`phys_footprint` with the weights inside it, so it is deliberately not a third row
+of this table. And the `mlx` engine gets no shorter-window row at all: it refuses
+every window but the native 8 s one, because there the window is an attention
+length rather than a buffer size.
+
 That table is why this crate exists. A 19.4 GB single allocation on a 16 GB
 machine does not fail politely, and it fails after you have paid for decoding and
 resampling. So the crate's job is: **decide before allocating, stream both
@@ -358,7 +369,7 @@ two windows against each other by ear:
 
 ```sh
 rust-roformer --model melband_roformer_vocals.onnx --window 4s -o stems demo-audio/aria_12s.wav
-rust-roformer --model melband_roformer_vocals.onnx --window 2.5s -o stems-2-5s demo-audio/aria_12s.wav
+rust-roformer --model melband_roformer_vocals.onnx --window 2s -o stems-2s demo-audio/aria_12s.wav
 ```
 
 Those are descriptions, not an SI-SDR claim — a commercial track has no

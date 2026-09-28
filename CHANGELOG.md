@@ -101,3 +101,19 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
 - CI: fmt, clippy with warnings denied, tests on Linux/macOS/Windows with and
   without default features, and an MSRV job so `rust-version` is a claim someone
   checks rather than decor.
+
+### Changed
+
+- Copyright and attribution now name the maintainer: `LICENSE` carries
+  `Copyright 2026 DeepForgeHub (https://deepforgehub.com)` in place of the Apache
+  appendix's `[yyyy]`/`[name of copyright owner]` placeholders, `NOTICE` says the
+  same for the Rust code and keeps the upstream-weight list below it, and
+  `docs/LICENSES.md` §1 repeats it. The name is the one the project's own site
+  uses for itself (`DeepForgeHub`, from the domain); it is deliberately **not**
+  the bare `DeepForge`, which an unrelated 755-star deep-learning IDE already
+  occupies on GitHub. If a registered legal entity owns this code, that name
+  should replace it here and nowhere else needs to change.
+- `Cargo.toml` gained `homepage`, so the crates.io page carries a link to the
+  project home; `repository` still waits for the remote. The crate docs and
+  `rust-roformer --help` each state the home URL once, and a test asserts the
+  help text keeps it.

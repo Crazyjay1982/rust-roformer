@@ -9,6 +9,9 @@ description = "Mel-Band RoFormer vocal separation in Rust — ONNX Runtime and M
 keywords = ["audio", "source-separation", "vocal-remover", "mel-band-roformer", "onnx"]
 categories = ["multimedia::audio", "science"]
 readme = "README.md"
+# The project home. crates.io renders this as a link on the crate page, which is
+# one of the few places in a publish flow that a search engine will actually read.
+homepage = "https://deepforgehub.com"
 # No model weights, no sample audio: see NOTICE and docs/LICENSES.md.
 #
 # The scripts are named one by one rather than as `scripts/**`, because the

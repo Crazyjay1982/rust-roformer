@@ -5,7 +5,8 @@ the part people usually skip and later wish they had not.
 
 ## 1. The code in this repository
 
-Apache License 2.0 — see [`LICENSE`](../LICENSE). This covers `src/`,
+Apache License 2.0 — see [`LICENSE`](../LICENSE), copyright 2026 DeepForgeHub
+(`https://deepforgehub.com`). This covers `src/`,
 `tools/`, `examples/`, `docs/` and the tests. It does **not** cover model
 weights, and this repository ships none: no `.onnx`, no `.safetensors`, no
 audio. `.gitignore` keeps them out on purpose, and `tools/` exists so you can

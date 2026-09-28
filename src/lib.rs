@@ -7,6 +7,11 @@
 //! four-hour track be separated on a 16 GB laptop without ever holding the
 //! track, the intermediate buffers, or the result in memory at the same time.
 //!
+//! Maintained at [DeepForgeHub](https://deepforgehub.com), extracted from the
+//! separation stage of the software maintained there and stood up on its own:
+//! nothing in this crate talks to that application or to any network at run time,
+//! and no model file arrives except one you downloaded and named yourself.
+//!
 //! "RoFormer" here is the *Mel-Band RoFormer* separation architecture: not the
 //! NLP model the rotary-embedding paper is named after, and not BS-RoFormer —
 //! the two group the frequency axis differently, so their weights do not

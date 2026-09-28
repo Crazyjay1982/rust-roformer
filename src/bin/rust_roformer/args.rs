@@ -83,6 +83,9 @@ exit codes:
   1  the run failed; the message says whether the machine was too small for the
      window, the file was not what we can read, or the model is wrong
   2  the command line was wrong (this help has the shape we expect)
+
+home: https://deepforgehub.com
+model weights are not part of this crate: you point it at a file you downloaded.
 ";
 
 /// Parse `argv` without the program name.
@@ -422,6 +425,17 @@ mod tests {
             Parsed::Bad(m) => assert!(m.contains("at least 1"), "{m}"),
             other => panic!("expected Bad, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn help_carries_the_project_home() {
+        // A one-line claim about where this comes from belongs in the text every
+        // user reads first, and a test is cheaper than remembering it at the next
+        // rewrite of this block.
+        assert!(
+            HELP.contains("https://deepforgehub.com"),
+            "HELP lost the home URL"
+        );
     }
 
     #[test]

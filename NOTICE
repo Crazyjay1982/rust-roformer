@@ -1,5 +1,6 @@
 rust-roformer
-Copyright 2026 the rust-roformer authors (the Rust code in this repository)
+Copyright 2026 DeepForgeHub (https://deepforgehub.com) — the Rust code in this
+repository
 
 This product bundles no model weights and no audio samples. It runs third-party
 Mel-Band RoFormer checkpoints that you download yourself.

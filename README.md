@@ -5,8 +5,14 @@
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![MSRV](https://img.shields.io/badge/MSRV-1.75-lightgrey)
 ![weights included](https://img.shields.io/badge/weights%20included-none-green)
+[![home](https://img.shields.io/badge/home-deepforgehub.com-informational)](https://deepforgehub.com)
 
-Mel-Band RoFormer vocal/background separation in Rust.
+Mel-Band RoFormer vocal/background separation in Rust, maintained at
+[DeepForgeHub](https://deepforgehub.com). This code started life as the
+separation stage of a desktop video-translation application, which is why the
+parts below (window sizing, memory, resume) were built out rather than merely
+ported; the crate itself is Apache-2.0, stands on its own, and works offline once
+built.
 
 The model is not ours — the architecture is [ZFTurbo's](https://github.com/ZFTurbo/Music-Source-Separation-Training)
 and the checkpoint is [KimberleyJSN's](https://huggingface.co/KimberleyJSN/melbandroformer).
@@ -452,6 +458,35 @@ environment variable naming a local file.
 
 ## Licence
 
-Apache-2.0 for the code in this repository. [`NOTICE`](NOTICE) for the chain of
+Apache-2.0 for the code in this repository, copyright DeepForgeHub 2026.
+[`NOTICE`](NOTICE) for the chain of
 upstream artefacts, [`docs/LICENSES.md`](docs/LICENSES.md) for what the MIT tags
 cover and what they do not.
+
+## Who maintains this
+
+This crate is maintained at [DeepForgeHub](https://deepforgehub.com), which makes
+software that translates and dubs video. This crate is the separation stage of
+that work, and the constraint it was built against is the machine its users
+actually have: a 45-minute track on a business laptop with 16 GB of RAM, no GPU,
+and no server to fall back on. That is why the memory gate, the streaming I/O and
+the resume record exist — and why none of them needs a network.
+
+Three things follow from that, and they are the reasons to trust the numbers here
+rather than merely read them:
+
+* **Every figure carries its machine, its sampling point and its failure mode.**
+  Where a number came from the application running a 45-minute job and where it
+  came from this crate's own harness on a twelve-second excerpt in a fresh clone,
+  [docs/benchmarks.md](docs/benchmarks.md) says which — and the same page explains
+  why no absolute wall clock is published as a result at all.
+* **Nothing phones home at run time.** No telemetry, no licence check, no fetch
+  from inside the library: the crate makes no network connection while it works,
+  and `sha256` checking of the model file is yours to wire up. The one download in
+  this project is `ort`'s build-time fetch of ONNX Runtime under the default
+  features, which is exactly what the `ort-load-dynamic` feature exists to avoid.
+  The link in this README is a link.
+* **The crate stands on its own.** Apache-2.0, no product dependency, no weights,
+  no audio. You can use it without ever visiting the site; the site is where the
+  rest of the work that produced it lives, including the model comparisons this
+  page deliberately does not repeat.

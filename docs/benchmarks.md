@@ -9,9 +9,19 @@ cost a day each to learn — they are written down so you do not pay again.
 | Quantity | What reads it | What it actually means |
 | --- | --- | --- |
 | `peak_mb` on macOS | `proc_pid_rusage(RUSAGE_INFO_V4)`, `phys_footprint` | **high-water mark for the whole process lifetime.** An arm measured after a heavier arm in the same process can never report lower. One process, one number. |
-| `peak_mb` on Windows | process memory counters + `GlobalMemoryStatusEx` | the useful figure is available *commit*, not resident set — these differ on both platforms and are not interchangeable |
+| `peak_mb` on Windows | `GetProcessMemoryInfo` sampled, plus `GlobalMemoryStatusEx` | the useful figure is available *commit*, not resident set — these differ on both platforms and are not interchangeable. Sampled quantity is `PagefileUsage` (current commit); the struct also carries `PeakPagefileUsage`, the true lifetime high-water, which is *not* what the sampler maxes. |
+| `peak_mb` on Linux | `/proc/self/status`, sampled (`VmSize`), with `/proc/meminfo` | same caveat, sharper: `VmSize` is address space, so it overstates real pressure, and it falls immediately on free. `VmPeak`/`VmHWM` are the lifetime maxima; `MemAvailable` is the host's, not a cgroup quota's. |
 | wall clock | `Instant` around `separate()` | comparable **only** within a session, and only paired (see below) |
 | separation quality | correlation against a reference, and listening | see "the SI-SDR trap" |
+
+One consequence of those two rows that is easy to miss: `peak_mb_while` returns a
+**max of samples of a current value**, not the OS's own high-water counter. On
+macOS the two coincide, because the footprint ledger stays charged — verified, the
+printed peak matched `/usr/bin/time -l` exactly. On Windows and Linux the value it
+samples genuinely falls between samples, so the printed peak is a **lower bound** on
+`PeakPagefileUsage` / `VmPeak`: a spike that lives shorter than the sampling interval
+is missed. A test now pins the relationship (`peak <= OS-reported lifetime peak`)
+rather than trusting the number to be the maximum.
 
 Two calibration facts about the macOS instrument, measured rather than assumed:
 

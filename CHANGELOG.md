@@ -182,6 +182,44 @@ for that first release rather than pointing at something that 404s.
   should also price the graph itself is left open, not decided here**: that is a
   behaviour change to a shipped check, so the doc records what was measured and does
   not pre-empt the call.
+- `mem::tests::peak_mb_while_tracks_a_sustained_climb` stopped asserting something
+  only true in a quiet process. It was the one red job on `9ce24da` — a docs-only
+  commit, on code that had passed the same job twice — and the failure was
+  `panicked at src/mem.rs:1133: peak below the reading taken before the bracket`
+  from `cargo test --no-default-features` on the Windows runner, exit 1, a real
+  assertion rather than a compile error. Root cause, read out of the code rather
+  than guessed: `peak_mb_while` returns the max of **samples** of `held_mb`, and
+  `held_mb` is a *current* quantity on Windows (`PagefileUsage`) and Linux
+  (`VmSize`) — both fall the moment memory is freed. `cargo test` runs the arms as
+  threads in one process, so a sibling arm releasing its buffers inside the bracket
+  can push every sample below the reading taken before it. macOS cannot fail this
+  way, which is why twelve local runs were green and the Windows runner was not: its
+  footprint ledger stays charged.
+- The cross-bracket assertion is gone and an in-bracket one takes its place: no
+  sample may exceed the OS's own lifetime high-water (`PeakPagefileUsage` / `VmPeak`
+  / `peak_footprint`), which holds under any amount of sibling activity. Both
+  directions were proved rather than asserted: making the sampler over-report by
+  4,000,000 MB fails the new check (`sampled peak 4000097 MB exceeds the OS-reported
+  lifetime peak Some(97) MB`), and killing the sampler entirely fails the surviving
+  not-trailing check — which is also why a third assertion that was sketched along
+  the way got deleted: the mutation showed the existing one already fires, so it
+  would have been dead weight. One caveat on the proof, stated because it nearly
+  made the proof worthless: the first mutation run "passed" only because
+  `--exact mem::tests::…` was filtered by bare name and matched **zero** tests; the
+  rerun that printed `running 1 test` is the one that counts.
+- `docs/benchmarks.md` gains the Linux row its instrument table never had, and says
+  out loud what the above implies for every number this file prints as
+  `peak N MB`: on Windows and Linux it is a **lower bound** on the OS-recorded
+  high-water, because a spike shorter than the sampling interval is missed. macOS
+  is the exception, and the exception is verified — the printed peak matched
+  `/usr/bin/time -l` byte for byte.
+- Left open, not silently changed: **whether the reported peak should become the OS's
+  own lifetime counter** rather than a sampled max. It would make the number exact on
+  all three platforms and the test trivial; it would also change what every peak
+  figure in this repository's output and docs means on Windows and Linux (they would
+  rise, and would include maxima this sampler never saw). That is a user-visible
+  semantics change to a shipped figure, so it waits for a decision instead of riding
+  in with a test fix.
 - The README's window examples are now the round set `8 s / 4 s / 2 s`, and a `2.5s`
   one is gone: what a reader copies out of a README should be what the memory figures
   cover. The parser still takes any hop multiple including fractional seconds — a

@@ -1104,7 +1104,10 @@ mod tests {
     /// without the task's footprint moving at all (see
     /// `footprint_tracks_a_known_allocation` on libmalloc keeping freed large
     /// regions charged). Whether the ledger moves is that test's business;
-    /// this one is about the sampler not trailing what it was shown.
+    /// this one is about the sampler not trailing what it was shown. Which is
+    /// also why nothing here compares across the start of the bracket: cargo
+    /// runs these arms as threads in one process, so a reading taken before it
+    /// is not a floor the bracket has to clear.
     #[test]
     fn peak_mb_while_tracks_a_sustained_climb() {
         let Some(base) = snapshot().and_then(|s| s.held_mb()) else {
@@ -1130,9 +1133,22 @@ mod tests {
             "sampled peak {peak} MB trailed a {mb} MB allocation held for \
              {during} MB of sampling intervals (base {base} MB)"
         );
+        // What this arm may demand of the sampler, and what it may not. It may
+        // demand that the sampler not trail a reading taken inside its own
+        // bracket, which is the line above. It may NOT demand `peak >= base`:
+        // `peak_mb_while` returns a max of *sampled current* values, and on
+        // Windows and Linux `held_mb` is a current quantity that really falls
+        // when memory is freed (commit charge / VmSize), so a sibling test
+        // releasing its buffers inside this bracket can push every sample below
+        // the reading taken before it. macOS hides that — its footprint ledger
+        // stays charged — which is exactly why this arm passed here and failed on
+        // a Windows runner. The floor that *is* valid under concurrency is the
+        // other direction: no sample can exceed the OS's own lifetime high-water.
+        let os_peak = snapshot().and_then(|s| s.proc_peak_commit_mb.or(s.proc_peak_rss_mb));
         assert!(
-            peak >= base,
-            "peak below the reading taken before the bracket"
+            os_peak.is_none_or(|p| peak <= p),
+            "sampled peak {peak} MB exceeds the OS-reported lifetime peak \
+             {os_peak:?} MB"
         );
         if during < base + mb - 8 {
             // Worth printing, not failing: the allocator answered this request

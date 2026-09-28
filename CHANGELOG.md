@@ -117,3 +117,11 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
   project home; `repository` still waits for the remote. The crate docs and
   `rust-roformer --help` each state the home URL once, and a test asserts the
   help text keeps it.
+- The README, the crate docs and `docs/benchmarks.md` now name the application this
+  code came out of — DeepVideo — rather than describing it as "a desktop
+  video-translation application". It is the same sentence that says where the
+  45.8-minute and Windows figures were instrumented, which is the honest way to
+  label a provenance: the numbers a public test suite cannot carry are exactly the
+  ones a reader most wants to know the origin of. Nothing else about the
+  relationship changed: no product code, no weights, no audio and no dependency on
+  the application live here, and the crate still runs with the network off.

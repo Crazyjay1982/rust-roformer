@@ -8,7 +8,8 @@
 //! track, the intermediate buffers, or the result in memory at the same time.
 //!
 //! Maintained at [DeepForgeHub](https://deepforgehub.com), extracted from the
-//! separation stage of the software maintained there and stood up on its own:
+//! separation stage of their video-translation application DeepVideo and stood
+//! up on its own:
 //! nothing in this crate talks to that application or to any network at run time,
 //! and no model file arrives except one you downloaded and named yourself.
 //!

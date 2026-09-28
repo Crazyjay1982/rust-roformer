@@ -8,11 +8,11 @@
 [![home](https://img.shields.io/badge/home-deepforgehub.com-informational)](https://deepforgehub.com)
 
 Mel-Band RoFormer vocal/background separation in Rust, maintained at
-[DeepForgeHub](https://deepforgehub.com). This code started life as the
-separation stage of a desktop video-translation application, which is why the
-parts below (window sizing, memory, resume) were built out rather than merely
-ported; the crate itself is Apache-2.0, stands on its own, and works offline once
-built.
+DeepForgeHub. This code is the separation stage of
+[DeepVideo](https://deepforgehub.com), a desktop application that translates and
+dubs video, which is why the parts below — window sizing, memory, resume — were
+built out rather than merely ported. The crate itself is Apache-2.0, stands on its
+own, and works offline once built.
 
 The model is not ours — the architecture is [ZFTurbo's](https://github.com/ZFTurbo/Music-Source-Separation-Training)
 and the checkpoint is [KimberleyJSN's](https://huggingface.co/KimberleyJSN/melbandroformer).
@@ -465,9 +465,9 @@ cover and what they do not.
 
 ## Who maintains this
 
-This crate is maintained at [DeepForgeHub](https://deepforgehub.com), which makes
-software that translates and dubs video. This crate is the separation stage of
-that work, and the constraint it was built against is the machine its users
+This crate came out of [DeepVideo](https://deepforgehub.com), a desktop
+application that translates and dubs video, maintained at the account behind it,
+DeepForgeHub. The constraint it was built against is the machine its users
 actually have: a 45-minute track on a business laptop with 16 GB of RAM, no GPU,
 and no server to fall back on. That is why the memory gate, the streaming I/O and
 the resume record exist — and why none of them needs a network.
@@ -487,6 +487,9 @@ rather than merely read them:
   features, which is exactly what the `ort-load-dynamic` feature exists to avoid.
   The link in this README is a link.
 * **The crate stands on its own.** Apache-2.0, no product dependency, no weights,
-  no audio. You can use it without ever visiting the site; the site is where the
-  rest of the work that produced it lives, including the model comparisons this
-  page deliberately does not repeat.
+  no audio. You can use it without ever visiting the site — and the site is where
+  DeepVideo itself is documented, including what this separation stage feeds into,
+  which models were compared to get here, and what the rest of the pipeline does.
+  This page deliberately repeats none of that, because a benchmark table is more
+  useful when it says where its own numbers came from than when it doubles as an
+  advertisement.

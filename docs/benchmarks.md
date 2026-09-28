@@ -37,10 +37,11 @@ Two calibration facts about the macOS instrument, measured rather than assumed:
 | Product path, arena disabled | 8.83 GB peak | **3,440 MB peak, 349 MB plateau** | Windows, 16 GB class |
 
 One axis the table has to carry and a machine label does not: **which tree was
-instrumented**. Rows 1, 2 and 5 were measured in the desktop application this code
-was extracted from — same algorithms, same streaming structure, not this crate's
-binary — because a 45.8-minute track and a Windows laptop are not things a public
-test suite can carry. The two forward-pass rows are the same story from the field.
+instrumented**. Rows 1, 2 and 5 were measured in DeepVideo, the desktop
+application this code was extracted from — same algorithms, same streaming
+structure, not this crate's binary — because a 45.8-minute track and a Windows
+laptop are not things a public test suite can carry. The two forward-pass rows
+are the same story from the field.
 Read them as "what the technique cost", reproducible here in kind but not to the
 megabyte; the numbers this repository can reproduce on its own are in the
 walked-on-the-stock-export section below.

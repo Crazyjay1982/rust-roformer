@@ -68,3 +68,20 @@ So, stated plainly:
   the streaming I/O, the memory gate, and the arithmetic of the model
   implementation, which you can check against PyTorch without ever publishing a
   weight file.
+
+## 5. The recordings the demo uses are not here either
+
+`scripts/demo.sh` names two files hosted on Wikimedia Commons — an aria with
+orchestra (offered by its uploader under GFDL / CC BY-SA 3.0 / CC BY 2.5, used
+under the attribution-only CC BY 2.5 option) and an a cappella track (CC BY 3.0
+for the recording, the 1881 lyrics public domain). Both are third-party
+performances of third-party compositions; this repository links them, pins their
+SHA-256 so the numbers in `docs/demo.md` attach to bytes rather than to a
+procedure, and distributes neither.
+
+That is the same rule as §2 applied to audio, for the same reason: an artefact
+carrying somebody else's rights belongs where the rights holder put it, not in a
+tree whose licence field says Apache-2.0. It also means the attribution those two
+licences ask for is not this repository's to give — `docs/demo.md` carries the
+credit lines so that whoever distributes a clip derived from them has something
+accurate to copy.

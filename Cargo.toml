@@ -22,6 +22,7 @@ include = [
     "docs/**",
     "scripts/audit_public.sh",
     "scripts/bench_pair.sh",
+    "scripts/demo.sh",
     "scripts/pair_summary.awk",
     "README.md",
     "LICENSE",

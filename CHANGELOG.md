@@ -66,6 +66,20 @@ remote exists, so `Cargo.toml` deliberately carries no `repository`.
   not have. The script fails if that file is ever tracked, and each class of leak —
   path, private name, weight file, tracked local list — was planted and proved to
   turn it red.
+- `scripts/demo.sh` + `docs/demo.md` — a listening example that costs the
+  repository nothing it does not already refuse to carry: two recordings from
+  Wikimedia Commons (an aria over an orchestra, and an a cappella control), named
+  by URL, pinned by SHA-256 at both the source file and the 12-second excerpt,
+  fetched and decoded on the user's machine under their attribution-only licences
+  (CC BY 2.5 / CC BY 3.0). The page reports what those exact bytes measure —
+  63.3 dB of sub-140 Hz given up by the vocal stem while the voice band holds to
+  0.1 dB, the background stem 39.8 dB under the input on material that has nothing
+  to remove — and states plainly that none of it is an SI-SDR figure, because
+  there is no ground truth to compute one against. It also records the failure
+  mode a synthesized test signal runs into: `bench synth` yields a vocal stem of
+  exactly zero, and a hand-built "voice-like" signal scores *worse* than not
+  running the model at all (−10.35 dB against +3.89 dB), which is the checkpoint
+  rejecting an input it was never trained on rather than a port defect.
 - Documentation with the claims checked rather than phrased: `docs/benchmarks.md`
   gives every number its machine, its sampling point and its failure mode;
   `docs/LICENSES.md` states what the upstream MIT tags do and do not answer; and

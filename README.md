@@ -270,6 +270,37 @@ A derivative of a weight file carries the *weights'* terms, not this
 repository's Apache-2.0 — and see [docs/LICENSES.md](docs/LICENSES.md) for the
 one question about these checkpoints that no MIT tag in the chain answers.
 
+## Listening
+
+Everything above is about memory, windows and resumption. To hear it, you need a
+recording you are allowed to run a remover on, so `scripts/demo.sh` brings one:
+
+```sh
+./scripts/demo.sh --model melband_roformer_vocals.onnx              # Mozart: soprano over an orchestra
+./scripts/demo.sh --model melband_roformer_vocals.onnx --source bright   # a cappella, the control
+```
+
+Both sources are on Wikimedia Commons under attribution-only licences (CC BY 2.5 /
+CC BY 3.0), pinned by SHA-256, downloaded to your working directory and never
+into this repository — the crate ships no audio and no weights, and that is not a
+line it will cross. [docs/demo.md](docs/demo.md) has the credit lines, the exact
+command, and what the resulting stems measure:
+
+* On the aria the separation is by *content*, not by level: the vocal stem gives
+  up **63.3 dB of everything under 140 Hz** — which stays at −0.0 dB in the
+  background stem — while keeping the 200 Hz–4 kHz voice band to within 0.1 dB.
+* On the a cappella there is nothing to remove, and the model does not invent a
+  hole to fill: the background stem sits **39.8 dB below the input**, 53 dB down
+  in the voice band.
+* `vocals + background` reproduces the input to **75 dB**, so the mask is a
+  partition of the mixture rather than an attenuated copy of it.
+
+Those are descriptions, not an SI-SDR claim — a commercial track has no
+ground-truth stems, and [docs/demo.md](docs/demo.md) says so where the numbers
+are. The same page explains why `bench synth`, the fixture the transcript above
+runs on, produces a vocal stem whose samples are **all exactly zero**, and why
+that is a fact about the checkpoint rather than a bug in this crate.
+
 ## Measuring it
 
 ```sh

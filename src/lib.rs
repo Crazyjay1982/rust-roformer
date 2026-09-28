@@ -53,7 +53,9 @@
 //! [`docs/LICENSES.md`] and the `NOTICE` file
 //! for what that does and does not let you do. `tools/` turns a stock export you
 //! download yourself into the reduced-window graph and into the weight file the
-//! MLX engine loads.
+//! MLX engine loads. `scripts/demo.sh` is the other half of the same rule: it
+//! fetches freely licensed audio from where its rights holder published it, so
+//! that a listening example exists without any of it being *in* the repository.
 //!
 //! ## Minimal use
 //!

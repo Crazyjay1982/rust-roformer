@@ -6,6 +6,8 @@ Cargo.lock
 *.npy
 .DS_Store
 bench-out/
+demo-audio/
+demo-out/
 __pycache__/
 *.pyc
 scripts/audit-local.txt

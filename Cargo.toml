@@ -96,3 +96,16 @@ windows-sys = { version = "0.52", features = [
 
 [profile.release]
 opt-level = 3
+
+# docs.rs builds in a sandbox with network access blocked (stated on
+# https://docs.rs/about/builds), so the build-time fetch behind
+# `ort-download-binaries` cannot run there: `ort-sys` honours `CARGO_NET_OFFLINE`,
+# skips the download and leaves a cfg that fails at link time instead. Document
+# the engine anyway through `load-dynamic`, which resolves ONNX Runtime with
+# `dlopen` at run time and therefore needs no library present to build docs.
+# Verified in a cold target with `CARGO_NET_OFFLINE=true`: this set fetches
+# nothing, the default set is the one that would want to.
+[package.metadata.docs.rs]
+no-default-features = true
+features = ["onnx", "ort-load-dynamic"]
+targets = ["x86_64-unknown-linux-gnu"]
